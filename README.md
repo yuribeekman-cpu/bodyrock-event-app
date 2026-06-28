@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Body Rock Event App 🤘
 
-## Getting Started
+Familie Fun Event app voor Body Rock. Herbruikbaar per zomer/winter editie.
 
-First, run the development server:
+## Setup in 5 stappen
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### 1. Supabase project aanmaken
+- Ga naar [supabase.com](https://supabase.com) → New project
+- Naam: `bodyrock-event`
+- Kopieer je **Project URL** en **anon key** (Settings > API)
+
+### 2. Database schema aanmaken
+- Ga naar Supabase > SQL Editor
+- Plak en run de volgende code: `supabase-schema.sql`
+
+### 3. Storage bucket aanmaken
+- Supabase > Storage > New bucket
+- Naam: `challenge-photos`
+- Aanvinken: **Public bucket**
+
+### 4. Environment variables instellen
+Maak een `.env.local` aan (zie `.env.local.example`):
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://jouw-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=jouw-anon-key
+SUPABASE_SERVICE_ROLE_KEY=jouw-service-role-key
+ADMIN_PASSWORD=bodyrock2026
+NEXT_PUBLIC_APP_URL=https://jouw-app.vercel.app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 5. Deploy naar Vercel
+```bash
+npx vercel
+```
+Of push naar GitHub en koppel aan Vercel. Zet de env vars in Vercel > Settings > Environment Variables.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Gebruik op de dag zelf
 
-## Learn More
+### Als trainer (admin)
+1. Ga naar `/admin` → log in
+2. Maak het event aan (of activeer een bestaand event)
+3. Maak X teams aan → QR codes worden gegenereerd
+4. Print de QR-kaartjes of toon ze op je telefoon
+5. Volg scores live via de Scores tab
 
-To learn more about Next.js, take a look at the following resources:
+### Als team
+1. Scan de QR-code → vul teamnaam captain in
+2. Open challenges één voor één
+3. Voer score in + maak foto
+4. Bekijk het scorebord via "Board"
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Elk jaar hergebruiken
+- Admin maakt een nieuw event aan (bijv. "Winter 2026")
+- Challenges worden automatisch geladen vanuit de template in `CHALLENGES_2026`
+- Wil je andere challenges? Pas de `CHALLENGES_2026` array aan in `app/admin/dashboard/page.tsx`
+- Of: voeg een "challenges bewerken" functie toe via de admin UI (volgende versie)
 
-## Deploy on Vercel
+## App structuur
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+/               Home (join / board / admin)
+/join           Team join via code invoeren
+/join/[code]    Direct redirect via QR-link
+/team/[id]      Team challenge interface
+/board          Realtime scorebord + foto feed
+/admin          Trainer login
+/admin/dashboard  Event beheer, teams, QR, scores
+/api/admin/auth   Login endpoint
+/api/admin/events Event CRUD
+/api/teams        Team aanmaken/ophalen
+/api/scores       Score submit/ophalen
+/api/upload       Foto upload naar Supabase Storage
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech stack
+- **Next.js 15** (App Router)
+- **Supabase** (database + storage + realtime)
+- **Tailwind CSS**
+- **Vercel** (hosting)
+- **react-qr-code** (QR generatie)
