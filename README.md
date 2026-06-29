@@ -1,6 +1,6 @@
 # Body Rock Event App 🤘
 
-Familie Fun Event app voor Body Rock. Herbruikbaar per zomer/winter editie.
+Event app voor Body Rock. Herbruikbaar per zomer/winter editie.
 
 ## Setup in 5 stappen
 
