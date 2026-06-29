@@ -9,16 +9,66 @@ type Team = { id: string; name: string; join_code: string; captain_name: string;
 type Challenge = { id: string; number: number; title: string; score_type: string }
 
 const CHALLENGES_2026 = [
-  { number: 1, title: "Yuri's Bodyweight Endurance Challenge", description: '', score_type: 'time' },
-  { number: 2, title: "Irene's Hub Focus-Check", description: '', score_type: 'time' },
-  { number: 3, title: "Lorraine's Body Rock Tunnel-Plank", description: '', score_type: 'time' },
-  { number: 4, title: "Marjons Kangoeroe-Lancering", description: '', score_type: 'time' },
-  { number: 5, title: "Wessels Speedladder Voetbal-Sniper", description: '', score_type: 'time' },
-  { number: 6, title: "De 10-Potige Body Rock Rups", description: '', score_type: 'time' },
-  { number: 7, title: "De Grote Jubileum Push-ups", description: '', score_type: 'reps' },
-  { number: 8, title: "Bertjes Vertrouwensloop", description: '', score_type: 'time' },
-  { number: 9, title: "Sabine's Low-Drive Coördinatie", description: '', score_type: 'time' },
-  { number: 10, title: 'De "10 Jaar Body Rock" Foto-Safari', description: '', score_type: 'time' },
+  {
+    number: 1,
+    title: "Yuri's Bodyweight Endurance Challenge",
+    description: "Eén teamlid is de 'kruiwagen' en legt een gecontroleerd parcours in de beleeftuin tussen de pionnen heen en terug af. Na telkens 5 burpees mag het volgende duo achter het eerste kruiwagenduo aan. Iedereen komt één keer aan de beurt als kruiwagen.",
+    score_type: 'time',
+  },
+  {
+    number: 2,
+    title: "Irene's Hub Focus-Check",
+    description: "Het hele team gaat in een strakke plank-positie op het gras staan, met de blik gericht op de Hub. Terwijl de rest de plank vasthoudt, sprint één gezinslid een snel rondje om de rest heen. Zodra de loper terug is, wisselt de beurt. De tijd stopt pas als iedereen de Hub-wacht heeft gelopen.",
+    score_type: 'time',
+  },
+  {
+    number: 3,
+    title: "Lorraine's Body Rock Tunnel-Plank",
+    description: "Alle teamleden (behalve één) gaan achter elkaar in een hoge plank-positie staan. De achterste persoon kruipt als een slang onder de planken door naar voren. Doe dit totdat het volledige team in totaal 10 keer onder de tunnel door is gekropen.",
+    score_type: 'time',
+  },
+  {
+    number: 4,
+    title: "Marjons Kangoeroe-Lancering",
+    description: "De ouders vormen een 'stoeltje' of de kinderen springen op de rug (piggyback). Sprint naar de pion (20 meter verderop). Bij de pylon doet de drager 10 Kangoeroe-skips (hoge sprongen). Sprint terug en wissel van duo tot iedereen is geweest.",
+    score_type: 'time',
+  },
+  {
+    number: 5,
+    title: "Wessels Speedladder Voetbal-Sniper",
+    description: "Leg de speedladder uit op het grasveld. De gezinsleden moeten om de beurt vanaf 5 meter de voetbal rollen met als doel deze precies in trede 10 stil te laten liggen. Probeer zo snel mogelijk de bal in trede 1, trede 5 en trede 10 te rollen. Terwijl één iemand mikt, blijft de rest squats of lunges maken.",
+    score_type: 'time',
+  },
+  {
+    number: 6,
+    title: "De 10-Potige Body Rock Rups",
+    description: "Bind de voeten van het volledige team aan elkaar vast. Leg als één grote brede rups het aangegeven parcours af zonder los te raken. Jullie mogen maar 10 voeten tegelijk op de grond hebben!",
+    score_type: 'time',
+  },
+  {
+    number: 7,
+    title: "De Grote Jubileum Push-ups",
+    description: "10 jaar Body Rock betekent spierballen tonen! Scoor zoveel mogelijk push-ups als team in 2 minuten. Iedereen start tegelijkertijd en tel alle herhalingen bij elkaar op!",
+    score_type: 'reps',
+  },
+  {
+    number: 8,
+    title: "Bertjes Vertrouwensloop",
+    description: "Eén of twee teamleden doen hun ogen dicht (of krijgen een blinddoek). De rest van het team mag de blinde niet aanraken, maar loodst hem/haar met alleen aanwijzingen door een slalom van pionnen. Wissel halverwege om!",
+    score_type: 'time',
+  },
+  {
+    number: 9,
+    title: "Sabine's Low-Drive Coördinatie",
+    description: "Het hele team zakt in de krabhouding (handen en voeten op de grond, buik omhoog). In deze positie verplaatsen jullie de bal over 10 meter én passen minimaal 10 keer naar elkaar voordat er gescoord mag worden tussen de doelpionnen.",
+    score_type: 'time',
+  },
+  {
+    number: 10,
+    title: 'De "10 Jaar Body Rock" Foto-Safari',
+    description: "Maak drie foto's voor de Body Rock Hall of Fame: 1) Het team vormt met hun lichamen het getal 10 op het gras. 2) Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet. 3) Het hele team zweeft in de lucht (een perfect getimede sprong-foto!). Stuur de leukste versie in!",
+    score_type: 'time',
+  },
 ]
 
 export default function AdminDashboard() {
