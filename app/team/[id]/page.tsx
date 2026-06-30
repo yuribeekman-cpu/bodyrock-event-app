@@ -16,6 +16,7 @@ export default function TeamPage() {
   const [scores, setScores] = useState<Record<string, Score>>({})
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [now, setNow] = useState(Date.now())
 
   // Sub-opdrachten state (alleen relevant voor challenge 10)
@@ -26,21 +27,21 @@ export default function TeamPage() {
   const [stepPhotoPreview, setStepPhotoPreview] = useState<string | null>(null)
 
   // Score form state
-  const [minutes, setMinutes] = useState('')
-  const [seconds, setSeconds] = useState('')
   const [reps, setReps] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const stepFileRef = useRef<HTMLInputElement>(null)
 
-  // Fun foto state
+  // Fun foto state — meerdere foto's tegelijk
   const [funPhotos, setFunPhotos] = useState<FunPhoto[]>([])
   const [funModalOpen, setFunModalOpen] = useState(false)
-  const [funPhoto, setFunPhoto] = useState<File | null>(null)
-  const [funPhotoPreview, setFunPhotoPreview] = useState<string | null>(null)
+  const [funPhotoFiles, setFunPhotoFiles] = useState<File[]>([])
+  const [funPhotoPreviews, setFunPhotoPreviews] = useState<string[]>([])
   const [funUploading, setFunUploading] = useState(false)
+  const [funError, setFunError] = useState('')
   const funFileRef = useRef<HTMLInputElement>(null)
+  const MAX_PHOTO_MB = 8
 
   useEffect(() => {
     const storedId = localStorage.getItem('br_team_id')
@@ -84,8 +85,7 @@ export default function TeamPage() {
 
     const existing = scores[challenge.id]
     setActiveChallenge(challenge)
-    setMinutes(existing?.minutes?.toString() || '')
-    setSeconds(existing?.seconds?.toString() || '')
+    setSubmitError('')
     setReps(existing?.reps?.toString() || '')
     setPhotoPreview(existing?.photo_url || null)
     setPhoto(null)
@@ -126,6 +126,12 @@ export default function TeamPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!activeChallenge) return
+
+    if (!photo && !scores[activeChallenge.id]?.photo_url) {
+      setSubmitError('📸 Helaas, zonder foto is de challenge niet compleet 😆')
+      return
+    }
+    setSubmitError('')
     setSubmitting(true)
 
     let photoUrl = scores[activeChallenge.id]?.photo_url || null
@@ -143,13 +149,10 @@ export default function TeamPage() {
     const payload: Record<string, unknown> = { team_id: teamId, challenge_id: activeChallenge.id, photo_url: photoUrl }
 
     if (activeChallenge.score_type === 'time') {
-      // Bij upload: gebruik de live-getimede tijd, tenzij handmatig aangepast
       const existing = scores[activeChallenge.id]
       const elapsed = getElapsedSeconds(existing)
-      const finalMinutes = minutes !== '' ? parseInt(minutes) : Math.floor(elapsed / 60)
-      const finalSeconds = seconds !== '' ? parseInt(seconds) : elapsed % 60
-      payload.minutes = finalMinutes
-      payload.seconds = finalSeconds
+      payload.minutes = Math.floor(elapsed / 60)
+      payload.seconds = elapsed % 60
       payload.started_at = existing?.started_at || null
     } else {
       payload.reps = parseInt(reps) || 0
@@ -197,35 +200,53 @@ export default function TeamPage() {
     setStepPhotoPreview(null)
   }
 
-  // Fun foto upload
+  // Fun foto upload — meerdere foto's tegelijk, met grootte-check
   function handleFunPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFunPhoto(file)
-    setFunPhotoPreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+
+    const tooBig = files.filter(f => f.size > MAX_PHOTO_MB * 1024 * 1024)
+    if (tooBig.length) {
+      setFunError(`Eén of meer foto's zijn groter dan ${MAX_PHOTO_MB}MB. Probeer een kleinere foto.`)
+      return
+    }
+
+    setFunError('')
+    setFunPhotoFiles(prev => [...prev, ...files])
+    setFunPhotoPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
+  }
+
+  function removeFunPhoto(index: number) {
+    setFunPhotoFiles(prev => prev.filter((_, i) => i !== index))
+    setFunPhotoPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
   async function handleFunSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!funPhoto) return
+    if (!funPhotoFiles.length) return
     setFunUploading(true)
 
-    const fd = new FormData()
-    fd.append('file', funPhoto)
-    fd.append('team_id', teamId)
-    const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
-    const { url } = await uploadRes.json()
+    const newPhotos: FunPhoto[] = []
+    for (const file of funPhotoFiles) {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('team_id', teamId)
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+      const { url } = await uploadRes.json()
 
-    const res = await fetch('/api/fun-photos', {
-      method: 'POST',
-      body: JSON.stringify({ team_id: teamId, photo_url: url }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const saved = await res.json()
-    setFunPhotos(prev => [saved, ...prev])
+      const res = await fetch('/api/fun-photos', {
+        method: 'POST',
+        body: JSON.stringify({ team_id: teamId, photo_url: url }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const saved = await res.json()
+      newPhotos.push(saved)
+    }
+
+    setFunPhotos(prev => [...newPhotos, ...prev])
     setFunModalOpen(false)
-    setFunPhoto(null)
-    setFunPhotoPreview(null)
+    setFunPhotoFiles([])
+    setFunPhotoPreviews([])
     setFunUploading(false)
   }
 
@@ -253,6 +274,23 @@ export default function TeamPage() {
         <div className="h-2 rounded-full transition-all duration-500" style={{width: `${orderedChallenges.length ? (completedCount / orderedChallenges.length) * 100 : 0}%`, background: 'var(--br-red)'}} />
       </div>
 
+      {/* Fun foto's sectie — bovenaan */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{color: 'var(--br-muted)'}}>Fun foto&apos;s 🤘</h2>
+          <button onClick={() => setFunModalOpen(true)} className="btn-secondary text-xs py-1.5 px-3">+ Toevoegen</button>
+        </div>
+        {funPhotos.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {funPhotos.map(p => (
+              <div key={p.id} className="rounded-lg overflow-hidden" style={{ aspectRatio: '4/5' }}>
+                <img src={p.photo_url} alt="Fun foto" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Challenges in geroteerde volgorde */}
       <div className="flex flex-col gap-3">
         {orderedChallenges.map((ch, index) => {
@@ -261,6 +299,7 @@ export default function TeamPage() {
           const unlocked = isUnlocked(index)
           const running = score?.started_at && !done
           const elapsed = running ? getElapsedSeconds(score) : 0
+          const highlight = done || running
 
           return (
             <button
@@ -269,7 +308,7 @@ export default function TeamPage() {
               disabled={!unlocked}
               className="card text-left flex items-center gap-4 transition-all"
               style={{
-                borderLeft: done ? '4px solid var(--br-red)' : undefined,
+                border: highlight ? '1.5px solid var(--br-red)' : '1px solid rgba(0,0,0,0.1)',
                 opacity: unlocked ? 1 : 0.45,
                 cursor: unlocked ? 'pointer' : 'not-allowed',
               }}
@@ -288,23 +327,6 @@ export default function TeamPage() {
             </button>
           )
         })}
-      </div>
-
-      {/* Fun foto's sectie */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{color: 'var(--br-muted)'}}>Fun foto&apos;s 🤘</h2>
-          <button onClick={() => setFunModalOpen(true)} className="btn-secondary text-xs py-1.5 px-3">+ Toevoegen</button>
-        </div>
-        {funPhotos.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {funPhotos.map(p => (
-              <div key={p.id} className="rounded-lg overflow-hidden" style={{ aspectRatio: '4/5' }}>
-                <img src={p.photo_url} alt="Fun foto" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Challenge modal */}
@@ -365,22 +387,7 @@ export default function TeamPage() {
             )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {activeChallenge.score_type === 'time' ? (
-                <div>
-                  <label className="text-sm mb-2 block" style={{ color: 'var(--br-muted)' }}>Tijd (vul aan of laat automatisch)</label>
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <input className="input text-center text-2xl font-bold" type="number" placeholder="0" min={0} value={minutes} onChange={e => setMinutes(e.target.value)} />
-                      <div className="text-center text-xs mt-1" style={{ color: 'var(--br-muted)' }}>minuten</div>
-                    </div>
-                    <div className="text-2xl flex items-center pb-5" style={{ color: 'var(--br-muted)' }}>:</div>
-                    <div className="flex-1">
-                      <input className="input text-center text-2xl font-bold" type="number" placeholder="00" min={0} max={59} value={seconds} onChange={e => setSeconds(e.target.value)} />
-                      <div className="text-center text-xs mt-1" style={{ color: 'var(--br-muted)' }}>seconden</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
+              {activeChallenge.score_type === 'reps' && (
                 <div>
                   <label className="text-sm mb-2 block" style={{ color: 'var(--br-muted)' }}>Aantal herhalingen</label>
                   <input className="input text-center text-3xl font-bold" type="number" placeholder="0" min={0} value={reps} onChange={e => setReps(e.target.value)} />
@@ -403,7 +410,13 @@ export default function TeamPage() {
                 <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" />
               </div>
 
-              <button type="submit" className="btn-primary" disabled={submitting || (!photo && !scores[activeChallenge.id]?.photo_url)}>
+              {submitError && (
+                <div className="text-sm text-center rounded-xl px-4 py-3" style={{ background: 'rgba(188,0,0,0.08)', color: 'var(--br-red)' }}>
+                  {submitError}
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary" disabled={submitting}>
                 {submitting ? 'Opslaan...' : 'Challenge afronden 🤘'}
               </button>
             </form>
@@ -446,29 +459,39 @@ export default function TeamPage() {
       {/* Fun foto modal */}
       {funModalOpen && (
         <div className="fixed inset-0 flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full rounded-t-3xl p-6" style={{ background: 'var(--br-offwhite)' }}>
+          <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--br-offwhite)' }}>
             <div className="flex items-start justify-between mb-4">
-              <h2 className="text-lg font-bold">Fun foto toevoegen 🤘</h2>
-              <button onClick={() => { setFunModalOpen(false); setFunPhoto(null); setFunPhotoPreview(null) }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
+              <h2 className="text-lg font-bold">Fun foto&apos;s toevoegen 🤘</h2>
+              <button onClick={() => { setFunModalOpen(false); setFunPhotoFiles([]); setFunPhotoPreviews([]); setFunError('') }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
             </div>
-            <p className="text-sm mb-4" style={{ color: 'var(--br-muted)' }}>Geen score nodig — gewoon voor de lol. Verschijnt op het message board!</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--br-muted)' }}>Geen score nodig — gewoon voor de lol. Je kunt meerdere foto&apos;s tegelijk kiezen (max {MAX_PHOTO_MB}MB per foto). Verschijnt op het message board!</p>
 
             <form onSubmit={handleFunSubmit} className="flex flex-col gap-4">
-              {funPhotoPreview ? (
-                <div className="relative" style={{ aspectRatio: '4/5' }}>
-                  <img src={funPhotoPreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
-                  <button type="button" onClick={() => { setFunPhoto(null); setFunPhotoPreview(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
+              {funPhotoPreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {funPhotoPreviews.map((src, i) => (
+                    <div key={i} className="relative" style={{ aspectRatio: '4/5' }}>
+                      <img src={src} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                      <button type="button" onClick={() => removeFunPhoto(i)} className="absolute top-1 right-1 rounded-full w-6 h-6 flex items-center justify-center text-xs" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <button type="button" onClick={() => funFileRef.current?.click()} className="w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2" style={{ borderColor: 'rgba(0,0,0,0.15)', color: 'var(--br-muted)' }}>
-                  <span className="text-3xl">📷</span>
-                  <span className="text-sm">Foto toevoegen</span>
-                </button>
               )}
-              <input ref={funFileRef} type="file" accept="image/*" capture="environment" onChange={handleFunPhotoChange} className="hidden" />
 
-              <button type="submit" className="btn-primary" disabled={!funPhoto || funUploading}>
-                {funUploading ? 'Uploaden...' : 'Delen 🪨'}
+              <button type="button" onClick={() => funFileRef.current?.click()} className="w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2" style={{ borderColor: 'rgba(0,0,0,0.15)', color: 'var(--br-muted)' }}>
+                <span className="text-3xl">📷</span>
+                <span className="text-sm">{funPhotoPreviews.length > 0 ? 'Meer foto\'s toevoegen' : "Foto's toevoegen"}</span>
+              </button>
+              <input ref={funFileRef} type="file" accept="image/*" multiple onChange={handleFunPhotoChange} className="hidden" />
+
+              {funError && (
+                <div className="text-sm text-center rounded-xl px-4 py-3" style={{ background: 'rgba(188,0,0,0.08)', color: 'var(--br-red)' }}>
+                  {funError}
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary" disabled={!funPhotoFiles.length || funUploading}>
+                {funUploading ? 'Uploaden...' : `Delen 🪨 ${funPhotoFiles.length > 0 ? `(${funPhotoFiles.length})` : ''}`}
               </button>
             </form>
           </div>

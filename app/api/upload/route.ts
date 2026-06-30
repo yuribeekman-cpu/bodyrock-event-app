@@ -12,6 +12,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missende velden' }, { status: 400 })
   }
 
+  const MAX_BYTES = 8 * 1024 * 1024
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: 'Foto is groter dan 8MB' }, { status: 413 })
+  }
+
   const db = getServerClient()
   const ext = file.name.split('.').pop()
   const path = `${teamId}/${key}-${Date.now()}.${ext}`
