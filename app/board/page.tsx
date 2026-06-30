@@ -5,7 +5,7 @@ import Logo from '@/components/Logo'
 import Link from 'next/link'
 
 type TeamSummary = { id: string; name: string; captain_name: string; completed: number; scores: Score[] }
-type PhotoEntry = { id: string; photo_url: string; team_name: string; challenge_title: string; submitted_at: string }
+type PhotoEntry = { id: string; photo_url: string; team_name: string; label: string; submitted_at: string; isFun?: boolean }
 
 export default function BoardPage() {
   const [teams, setTeams] = useState<TeamSummary[]>([])
@@ -18,6 +18,7 @@ export default function BoardPage() {
     loadBoard()
     const channel = supabase.channel('board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scores' }, () => loadBoard())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fun_photos' }, () => loadBoard())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
@@ -32,23 +33,39 @@ export default function BoardPage() {
       .select('id, name, captain_name, scores(id, challenge_id, minutes, seconds, reps, photo_url, submitted_at, challenges(title, number))')
       .eq('event_id', eventData.id)
 
+    const allPhotos: PhotoEntry[] = []
+
     if (teamsData) {
-      const summaries: TeamSummary[] = teamsData.map((t: any) => ({
-        id: t.id, name: t.name, captain_name: t.captain_name || '?',
-        completed: t.scores?.length || 0, scores: t.scores || [],
-      }))
+      const summaries: TeamSummary[] = teamsData.map((t: any) => {
+        // Alleen scores MET foto tellen als "afgerond"
+        const completedScores = (t.scores || []).filter((s: any) => s.photo_url)
+        return {
+          id: t.id, name: t.name, captain_name: t.captain_name || '?',
+          completed: completedScores.length, scores: t.scores || [],
+        }
+      })
       summaries.sort((a, b) => b.completed - a.completed)
       setTeams(summaries)
 
-      const allPhotos: PhotoEntry[] = []
       teamsData.forEach((t: any) => {
         t.scores?.forEach((s: any) => {
-          if (s.photo_url) allPhotos.push({ id: s.id, photo_url: s.photo_url, team_name: t.name, challenge_title: s.challenges?.title || '', submitted_at: s.submitted_at })
+          if (s.photo_url) allPhotos.push({ id: s.id, photo_url: s.photo_url, team_name: t.name, label: s.challenges?.title || '', submitted_at: s.submitted_at })
         })
       })
-      allPhotos.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
-      setPhotos(allPhotos)
     }
+
+    // Fun foto's erbij laden
+    const { data: funData } = await supabase
+      .from('fun_photos')
+      .select('id, photo_url, submitted_at, teams(name)')
+      .eq('teams.event_id', eventData.id)
+
+    funData?.forEach((f: any) => {
+      if (f.teams) allPhotos.push({ id: f.id, photo_url: f.photo_url, team_name: f.teams.name, label: 'Fun foto 🤘', submitted_at: f.submitted_at, isFun: true })
+    })
+
+    allPhotos.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+    setPhotos(allPhotos)
     setLoading(false)
   }
 
@@ -72,9 +89,7 @@ export default function BoardPage() {
       <div className="flex items-center justify-between mb-4 mt-2">
         <Logo />
         {myTeamId && (
-          <Link href={`/team/${myTeamId}`} className="btn-secondary text-sm py-2 px-4">
-            ← Challenges
-          </Link>
+          <Link href={`/team/${myTeamId}`} className="btn-secondary text-sm py-2 px-4">← Challenges</Link>
         )}
       </div>
 
@@ -125,10 +140,10 @@ export default function BoardPage() {
           <div className="grid grid-cols-2 gap-3">
             {photos.map(p => (
               <div key={p.id} className="rounded-xl overflow-hidden relative" style={{aspectRatio: '4/5'}}>
-                <img src={p.photo_url} alt={p.challenge_title} className="w-full h-full object-cover" />
+                <img src={p.photo_url} alt={p.label} className="w-full h-full object-cover" />
                 <div className="absolute bottom-0 left-0 right-0 p-2" style={{background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)'}}>
                   <div className="text-white text-xs font-semibold truncate">{p.team_name}</div>
-                  <div className="text-xs truncate" style={{color: 'rgba(255,255,255,0.7)'}}>{p.challenge_title}</div>
+                  <div className="text-xs truncate" style={{color: p.isFun ? 'var(--br-offwhite)' : 'rgba(255,255,255,0.7)'}}>{p.label}</div>
                 </div>
               </div>
             ))}

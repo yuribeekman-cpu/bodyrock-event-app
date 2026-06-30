@@ -71,8 +71,21 @@ export default function AdminDashboard() {
 
     const { createClient } = await import('@supabase/supabase-js')
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    await db.from('challenges').insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
-    setChallenges(CHALLENGES_2026.map((c, i) => ({ ...c, id: `tmp-${i}` })))
+    const { data: insertedChallenges } = await db
+      .from('challenges')
+      .insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
+      .select()
+    setChallenges(insertedChallenges || CHALLENGES_2026.map((c, i) => ({ ...c, id: `tmp-${i}` })))
+
+    const challenge10 = insertedChallenges?.find((c: any) => c.number === 10)
+    if (challenge10) {
+      await db.from('challenge_steps').insert([
+        { challenge_id: challenge10.id, step_number: 1, description: "Het team vormt met hun lichamen het getal '10' op het gras", sort_order: 0 },
+        { challenge_id: challenge10.id, step_number: 2, description: 'Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet', sort_order: 1 },
+        { challenge_id: challenge10.id, step_number: 3, description: 'Het hele team zweeft in de lucht (een perfect getimede sprong-foto!)', sort_order: 2 },
+      ])
+    }
+
     setLoading(false)
     setTab('qr')
   }
@@ -191,7 +204,7 @@ export default function AdminDashboard() {
                   <div className="text-sm" style={{color: 'var(--br-muted)'}}>Captain: {team.captain_name || '—'}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="font-bold" style={{color: 'var(--br-red)'}}>{team.scores?.length || 0}</div>
+                  <div className="font-bold" style={{color: 'var(--br-red)'}}>{team.scores?.filter((s: any) => s.photo_url).length || 0}</div>
                   <div className="text-xs" style={{color: 'var(--br-muted)'}}>challenges</div>
                 </div>
               </div>
@@ -207,11 +220,11 @@ export default function AdminDashboard() {
       {tab === 'scores' && (
         <div className="flex flex-col gap-3">
           <p className="text-sm mb-1" style={{color: 'var(--br-muted)'}}>Scores per team — controleer of het realistisch is.</p>
-          {teams.sort((a, b) => (b.scores?.length || 0) - (a.scores?.length || 0)).map(team => (
+          {teams.sort((a, b) => (b.scores?.filter((s: any) => s.photo_url).length || 0) - (a.scores?.filter((s: any) => s.photo_url).length || 0)).map(team => (
             <div key={team.id} className="card">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold">{team.name}</span>
-                <span className="font-bold text-sm" style={{color: 'var(--br-red)'}}>{team.scores?.length || 0}/{challenges.length}</span>
+                <span className="font-bold text-sm" style={{color: 'var(--br-red)'}}>{team.scores?.filter((s: any) => s.photo_url).length || 0}/{challenges.length}</span>
               </div>
               {(team.scores || []).map((s: any) => (
                 <div key={s.id} className="flex items-center gap-3 py-1.5 text-sm" style={{borderTop: '1px solid rgba(0,0,0,0.06)'}}>

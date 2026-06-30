@@ -14,6 +14,39 @@ export async function POST(req: NextRequest) {
       seconds: body.seconds ?? null,
       reps: body.reps ?? null,
       photo_url: body.photo_url ?? null,
+      started_at: body.started_at ?? null,
+      verified: false,
+    }, { onConflict: 'team_id,challenge_id' })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+// PATCH — alleen de timer starten (zonder score/foto)
+export async function PATCH(req: NextRequest) {
+  const body = await req.json()
+  const db = getServerClient()
+
+  // Check of er al een score-record bestaat (en dus al een timer)
+  const { data: existing } = await db
+    .from('scores')
+    .select('id, started_at')
+    .eq('team_id', body.team_id)
+    .eq('challenge_id', body.challenge_id)
+    .single()
+
+  if (existing?.started_at) {
+    return NextResponse.json(existing)
+  }
+
+  const { data, error } = await db
+    .from('scores')
+    .upsert({
+      team_id: body.team_id,
+      challenge_id: body.challenge_id,
+      started_at: new Date().toISOString(),
       verified: false,
     }, { onConflict: 'team_id,challenge_id' })
     .select()

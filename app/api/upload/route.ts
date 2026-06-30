@@ -5,15 +5,16 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData()
   const file = formData.get('file') as File
   const teamId = formData.get('team_id') as string
-  const challengeId = formData.get('challenge_id') as string
+  // challenge_id OF "fun" OF step_id — gewoon een unieke key voor het pad
+  const key = (formData.get('challenge_id') as string) || (formData.get('step_id') as string) || 'fun'
 
-  if (!file || !teamId || !challengeId) {
+  if (!file || !teamId) {
     return NextResponse.json({ error: 'Missende velden' }, { status: 400 })
   }
 
   const db = getServerClient()
   const ext = file.name.split('.').pop()
-  const path = `${teamId}/${challengeId}.${ext}`
+  const path = `${teamId}/${key}-${Date.now()}.${ext}`
 
   const { error } = await db.storage
     .from('challenge-photos')

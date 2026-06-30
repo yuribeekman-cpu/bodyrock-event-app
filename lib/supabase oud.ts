@@ -38,7 +38,6 @@ export type Team = {
   name: string
   join_code: string
   captain_name: string
-  start_challenge: number
 }
 
 export type Score = {
@@ -51,30 +50,6 @@ export type Score = {
   photo_url?: string
   submitted_at: string
   verified: boolean
-  started_at?: string
-}
-
-export type FunPhoto = {
-  id: string
-  team_id: string
-  photo_url: string
-  submitted_at: string
-}
-
-export type ChallengeStep = {
-  id: string
-  challenge_id: string
-  step_number: number
-  description: string
-  sort_order: number
-}
-
-export type StepCompletion = {
-  id: string
-  team_id: string
-  step_id: string
-  photo_url?: string
-  completed_at: string
 }
 
 export type TeamWithScores = Team & {

@@ -64,13 +64,28 @@ export default function EventJoinPage() {
       return
     }
 
+    // Tel hoeveel teams er al zijn om de roterende startchallenge te bepalen
+    const { count } = await supabase
+      .from('teams')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', event.id)
+
+    // Aantal challenges ophalen voor de modulo
+    const { count: challengeCount } = await supabase
+      .from('challenges')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', event.id)
+
+    const total = challengeCount || 10
+    const start_challenge = ((count || 0) % total) + 1
+
     const join_code = Array.from({ length: 6 }, () =>
       'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]
     ).join('')
 
     const { data: team, error: insertError } = await supabase
       .from('teams')
-      .insert({ event_id: event.id, name, captain_name: captain, join_code })
+      .insert({ event_id: event.id, name, captain_name: captain, join_code, start_challenge })
       .select()
       .single()
 
