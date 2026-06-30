@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase, Challenge, Score } from '@/lib/supabase'
 import { formatScore } from '@/lib/utils'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 
 export default function TeamPage() {
   const params = useParams()
@@ -16,7 +17,6 @@ export default function TeamPage() {
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Form state
   const [minutes, setMinutes] = useState('')
   const [seconds, setSeconds] = useState('')
   const [reps, setReps] = useState('')
@@ -25,12 +25,8 @@ export default function TeamPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Verify this team belongs to this user session
     const storedId = localStorage.getItem('br_team_id')
-    if (!storedId || storedId !== teamId) {
-      router.push('/join')
-      return
-    }
+    if (!storedId || storedId !== teamId) { router.push('/join'); return }
     loadData()
   }, [teamId])
 
@@ -39,11 +35,7 @@ export default function TeamPage() {
     if (!teamData) { router.push('/join'); return }
     setTeam(teamData)
 
-    const { data: challengeData } = await supabase
-      .from('challenges')
-      .select('*')
-      .eq('event_id', teamData.event_id)
-      .order('number')
+    const { data: challengeData } = await supabase.from('challenges').select('*').eq('event_id', teamData.event_id).order('number')
     setChallenges(challengeData || [])
 
     const { data: scoreData } = await supabase.from('scores').select('*').eq('team_id', teamId)
@@ -76,7 +68,6 @@ export default function TeamPage() {
 
     let photoUrl = scores[activeChallenge.id]?.photo_url || null
 
-    // Upload photo if new one selected
     if (photo) {
       const fd = new FormData()
       fd.append('file', photo)
@@ -87,11 +78,7 @@ export default function TeamPage() {
       photoUrl = json.url
     }
 
-    const payload: Record<string, unknown> = {
-      team_id: teamId,
-      challenge_id: activeChallenge.id,
-      photo_url: photoUrl,
-    }
+    const payload: Record<string, unknown> = { team_id: teamId, challenge_id: activeChallenge.id, photo_url: photoUrl }
     if (activeChallenge.score_type === 'time') {
       payload.minutes = parseInt(minutes) || 0
       payload.seconds = parseInt(seconds) || 0
@@ -108,52 +95,41 @@ export default function TeamPage() {
 
   const completedCount = Object.keys(scores).length
 
-  if (!team) return <div className="min-h-screen flex items-center justify-center text-white/60">Laden...</div>
+  if (!team) return <div className="min-h-screen flex items-center justify-center" style={{color: 'var(--br-muted)'}}>Laden...</div>
 
   return (
     <main className="min-h-screen p-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 mt-2">
-        <div>
-          <h1 className="text-xl font-bold">{team.name}</h1>
-          <p className="text-white/50 text-sm">{completedCount}/{challenges.length} challenges</p>
-        </div>
-        <Link href="/board" className="btn-secondary text-sm py-2 px-4">
-          🏆 Board
-        </Link>
+      <div className="flex items-center justify-between mb-4 mt-2">
+        <Logo />
+        <Link href="/board" className="btn-secondary text-sm py-2 px-4">🏆 Board</Link>
+      </div>
+
+      <div className="mb-4">
+        <h1 className="text-xl font-bold">{team.name}</h1>
+        <p className="text-sm" style={{color: 'var(--br-muted)'}}>{completedCount}/{challenges.length} challenges</p>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-white/10 rounded-full h-2 mb-6">
-        <div
-          className="bg-orange-500 h-2 rounded-full transition-all duration-500"
-          style={{ width: `${challenges.length ? (completedCount / challenges.length) * 100 : 0}%` }}
-        />
+      <div className="w-full rounded-full h-2 mb-6" style={{background: 'rgba(0,0,0,0.1)'}}>
+        <div className="h-2 rounded-full transition-all duration-500" style={{width: `${challenges.length ? (completedCount / challenges.length) * 100 : 0}%`, background: 'var(--br-red)'}} />
       </div>
 
-      {/* Challenges list */}
+      {/* Challenges */}
       <div className="flex flex-col gap-3">
         {challenges.map(ch => {
           const score = scores[ch.id]
           const done = !!score
           return (
-            <button
-              key={ch.id}
-              onClick={() => openChallenge(ch)}
-              className={`card text-left flex items-center gap-4 transition-all ${done ? 'border-orange-500/40' : ''}`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${done ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/60'}`}>
+            <button key={ch.id} onClick={() => openChallenge(ch)} className={`card text-left flex items-center gap-4 transition-all ${done ? 'border-l-4' : ''}`} style={done ? {borderLeftColor: 'var(--br-red)'} : {}}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={done ? {background: 'var(--br-red)', color: 'white'} : {background: 'rgba(0,0,0,0.08)', color: 'var(--br-muted)'}}>
                 {done ? '✓' : ch.number}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate">{ch.title}</div>
-                {done && (
-                  <div className="text-orange-400 text-xs mt-0.5">
-                    {formatScore(score, ch.score_type)} {score.photo_url ? '📷' : ''}
-                  </div>
-                )}
+                {done && <div className="text-xs mt-0.5" style={{color: 'var(--br-red)'}}>{formatScore(score, ch.score_type)} {score.photo_url ? '📷' : ''}</div>}
               </div>
-              <div className="text-white/30 text-sm">→</div>
+              <div style={{color: 'var(--br-muted)'}} className="text-sm">→</div>
             </button>
           )
         })}
@@ -161,61 +137,52 @@ export default function TeamPage() {
 
       {/* Challenge modal */}
       {activeChallenge && (
-        <div className="fixed inset-0 bg-black/80 flex items-end z-50 p-0">
-          <div className="bg-zinc-900 w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 flex items-end z-50" style={{background: 'rgba(0,0,0,0.5)'}}>
+          <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{background: 'var(--br-offwhite)'}}>
             <div className="flex items-start justify-between mb-4">
               <div>
-                <div className="text-orange-400 text-sm font-semibold mb-1">Challenge {activeChallenge.number}</div>
+                <div className="text-sm font-semibold mb-1" style={{color: 'var(--br-red)'}}>Challenge {activeChallenge.number}</div>
                 <h2 className="text-xl font-bold">{activeChallenge.title}</h2>
               </div>
-              <button onClick={() => setActiveChallenge(null)} className="text-white/40 text-2xl leading-none ml-4">×</button>
+              <button onClick={() => setActiveChallenge(null)} className="text-2xl leading-none ml-4" style={{color: 'var(--br-muted)'}}>×</button>
             </div>
 
             {activeChallenge.description && (
-              <p className="text-white/60 text-sm mb-5 leading-relaxed">{activeChallenge.description}</p>
+              <p className="text-sm mb-5 leading-relaxed" style={{color: 'var(--br-muted)'}}>{activeChallenge.description}</p>
             )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {activeChallenge.score_type === 'time' ? (
                 <div>
-                  <label className="text-sm text-white/60 mb-2 block">Tijd</label>
+                  <label className="text-sm mb-2 block" style={{color: 'var(--br-muted)'}}>Tijd</label>
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <input className="input text-center text-2xl font-bold" type="number" placeholder="0" min={0} value={minutes} onChange={e => setMinutes(e.target.value)} />
-                      <div className="text-center text-white/40 text-xs mt-1">minuten</div>
+                      <div className="text-center text-xs mt-1" style={{color: 'var(--br-muted)'}}>minuten</div>
                     </div>
-                    <div className="text-2xl flex items-center text-white/40 pb-5">:</div>
+                    <div className="text-2xl flex items-center pb-5" style={{color: 'var(--br-muted)'}}>:</div>
                     <div className="flex-1">
                       <input className="input text-center text-2xl font-bold" type="number" placeholder="00" min={0} max={59} value={seconds} onChange={e => setSeconds(e.target.value)} />
-                      <div className="text-center text-white/40 text-xs mt-1">seconden</div>
+                      <div className="text-center text-xs mt-1" style={{color: 'var(--br-muted)'}}>seconden</div>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm text-white/60 mb-2 block">Aantal herhalingen</label>
+                  <label className="text-sm mb-2 block" style={{color: 'var(--br-muted)'}}>Aantal herhalingen</label>
                   <input className="input text-center text-3xl font-bold" type="number" placeholder="0" min={0} value={reps} onChange={e => setReps(e.target.value)} />
                 </div>
               )}
 
-              {/* Photo upload */}
               <div>
-                <label className="text-sm text-white/60 mb-2 block">Foto 📷 (verplicht)</label>
+                <label className="text-sm mb-2 block" style={{color: 'var(--br-muted)'}}>Foto 📷 (verplicht)</label>
                 {photoPreview ? (
                   <div className="relative">
                     <img src={photoPreview} alt="Preview" className="w-full h-48 object-cover rounded-xl" />
-                    <button
-                      type="button"
-                      onClick={() => { setPhoto(null); setPhotoPreview(null) }}
-                      className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
-                    >×</button>
+                    <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{background: 'rgba(0,0,0,0.6)', color: 'white'}}>×</button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full h-32 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-2 text-white/40 hover:border-orange-500/50 hover:text-white/60 transition-colors"
-                  >
+                  <button type="button" onClick={() => fileRef.current?.click()} className="w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors" style={{borderColor: 'rgba(0,0,0,0.15)', color: 'var(--br-muted)'}}>
                     <span className="text-3xl">📷</span>
                     <span className="text-sm">Foto toevoegen</span>
                   </button>
@@ -223,11 +190,7 @@ export default function TeamPage() {
                 <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" />
               </div>
 
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={submitting || (!photo && !scores[activeChallenge.id]?.photo_url)}
-              >
+              <button type="submit" className="btn-primary" disabled={submitting || (!photo && !scores[activeChallenge.id]?.photo_url)}>
                 {submitting ? 'Opslaan...' : 'Challenge afronden 🤘'}
               </button>
             </form>
