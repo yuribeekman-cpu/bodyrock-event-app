@@ -3,89 +3,33 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCode from 'react-qr-code'
 import { getEventUrl } from '@/lib/utils'
+import Logo from '@/components/Logo'
 
 type Event = { id: string; name: string; edition: string; date: string; is_active: boolean; event_code: string }
 type Team = { id: string; name: string; join_code: string; captain_name: string; scores?: any[] }
 type Challenge = { id: string; number: number; title: string; score_type: string }
 
 const CHALLENGES_2026 = [
-  {
-    number: 1,
-    title: "Yuri's Bodyweight Endurance Challenge",
-    description: "Eén teamlid is de 'kruiwagen' en legt een gecontroleerd parcours in de beleeftuin tussen de pionnen heen en terug af. Na telkens 5 burpees mag het volgende duo achter het eerste kruiwagenduo aan. Iedereen komt één keer aan de beurt als kruiwagen.",
-    score_type: 'time',
-  },
-  {
-    number: 2,
-    title: "Irene's Hub Focus-Check",
-    description: "Het hele team gaat in een strakke plank-positie op het gras staan, met de blik gericht op de Hub. Terwijl de rest de plank vasthoudt, sprint één gezinslid een snel rondje om de rest heen. Zodra de loper terug is, wisselt de beurt. De tijd stopt pas als iedereen de Hub-wacht heeft gelopen.",
-    score_type: 'time',
-  },
-  {
-    number: 3,
-    title: "Lorraine's Body Rock Tunnel-Plank",
-    description: "Alle teamleden (behalve één) gaan achter elkaar in een hoge plank-positie staan. De achterste persoon kruipt als een slang onder de planken door naar voren. Doe dit totdat het volledige team in totaal 10 keer onder de tunnel door is gekropen.",
-    score_type: 'time',
-  },
-  {
-    number: 4,
-    title: "Marjons Kangoeroe-Lancering",
-    description: "De ouders vormen een 'stoeltje' of de kinderen springen op de rug (piggyback). Sprint naar de pion (20 meter verderop). Bij de pylon doet de drager 10 Kangoeroe-skips (hoge sprongen). Sprint terug en wissel van duo tot iedereen is geweest.",
-    score_type: 'time',
-  },
-  {
-    number: 5,
-    title: "Wessels Speedladder Voetbal-Sniper",
-    description: "Leg de speedladder uit op het grasveld. De gezinsleden moeten om de beurt vanaf 5 meter de voetbal rollen met als doel deze precies in trede 10 stil te laten liggen. Probeer zo snel mogelijk de bal in trede 1, trede 5 en trede 10 te rollen. Terwijl één iemand mikt, blijft de rest squats of lunges maken.",
-    score_type: 'time',
-  },
-  {
-    number: 6,
-    title: "De 10-Potige Body Rock Rups",
-    description: "Bind de voeten van het volledige team aan elkaar vast. Leg als één grote brede rups het aangegeven parcours af zonder los te raken. Jullie mogen maar 10 voeten tegelijk op de grond hebben!",
-    score_type: 'time',
-  },
-  {
-    number: 7,
-    title: "De Grote Jubileum Push-ups",
-    description: "10 jaar Body Rock betekent spierballen tonen! Scoor zoveel mogelijk push-ups als team in 2 minuten. Iedereen start tegelijkertijd en tel alle herhalingen bij elkaar op!",
-    score_type: 'reps',
-  },
-  {
-    number: 8,
-    title: "Bertjes Vertrouwensloop",
-    description: "Eén of twee teamleden doen hun ogen dicht (of krijgen een blinddoek). De rest van het team mag de blinde niet aanraken, maar loodst hem/haar met alleen aanwijzingen door een slalom van pionnen. Wissel halverwege om!",
-    score_type: 'time',
-  },
-  {
-    number: 9,
-    title: "Sabine's Low-Drive Coördinatie",
-    description: "Het hele team zakt in de krabhouding (handen en voeten op de grond, buik omhoog). In deze positie verplaatsen jullie de bal over 10 meter én passen minimaal 10 keer naar elkaar voordat er gescoord mag worden tussen de doelpionnen.",
-    score_type: 'time',
-  },
-  {
-    number: 10,
-    title: 'De "10 Jaar Body Rock" Foto-Safari',
-    description: "Maak drie foto's voor de Body Rock Hall of Fame: 1) Het team vormt met hun lichamen het getal 10 op het gras. 2) Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet. 3) Het hele team zweeft in de lucht (een perfect getimede sprong-foto!). Stuur de leukste versie in!",
-    score_type: 'time',
-  },
+  { number: 1, title: "Yuri's Bodyweight Endurance Challenge", description: "Eén teamlid is de 'kruiwagen' en legt een gecontroleerd parcours af. Na telkens 5 burpees mag het volgende duo achter het eerste kruiwagenduo aan. Iedereen komt één keer aan de beurt.", score_type: 'time' },
+  { number: 2, title: "Irene's Hub Focus-Check", description: "Het hele team gaat in plank-positie op het gras staan. Terwijl de rest de plank vasthoudt, sprint één gezinslid een rondje om de rest heen. De tijd stopt pas als iedereen de Hub-wacht heeft gelopen.", score_type: 'time' },
+  { number: 3, title: "Lorraine's Body Rock Tunnel-Plank", description: "Alle teamleden gaan achter elkaar in een hoge plank-positie staan. De achterste persoon kruipt als een slang onder de planken door naar voren. Doe dit totdat het team 10 keer onder de tunnel door is gekropen.", score_type: 'time' },
+  { number: 4, title: "Marjons Kangoeroe-Lancering", description: "De ouders vormen een stoeltje of de kinderen springen op de rug. Sprint naar de pion (20 meter). Bij de pylon doet de drager 10 Kangoeroe-skips. Sprint terug en wissel van duo tot iedereen is geweest.", score_type: 'time' },
+  { number: 5, title: "Wessels Speedladder Voetbal-Sniper", description: "Rol de voetbal vanaf 5 meter met als doel deze in trede 10 stil te laten liggen. Probeer zo snel mogelijk de bal in trede 1, 5 en 10 te rollen. Terwijl één iemand mikt blijft de rest squats of lunges maken.", score_type: 'time' },
+  { number: 6, title: "De 10-Potige Body Rock Rups", description: "Bind de voeten van het volledige team aan elkaar vast. Leg als één grote rups het parcours af zonder los te raken. Jullie mogen maar 10 voeten tegelijk op de grond hebben!", score_type: 'time' },
+  { number: 7, title: "De Grote Jubileum Push-ups", description: "Scoor zoveel mogelijk push-ups als team in 2 minuten. Iedereen start tegelijkertijd en tel alle herhalingen bij elkaar op!", score_type: 'reps' },
+  { number: 8, title: "Bertjes Vertrouwensloop", description: "Eén of twee teamleden doen hun ogen dicht. De rest loodst hem/haar met alleen aanwijzingen door een slalom van pionnen. Wissel halverwege om!", score_type: 'time' },
+  { number: 9, title: "Sabine's Low-Drive Coördinatie", description: "Het hele team zakt in de krabhouding. Verplaats de bal over 10 meter en pas minimaal 10 keer naar elkaar voordat er gescoord mag worden tussen de doelpionnen.", score_type: 'time' },
+  { number: 10, title: 'De "10 Jaar Body Rock" Foto-Safari', description: "Maak drie foto's: 1) Het team vormt het getal 10 op het gras. 2) Groepsfoto met originele spierballen-pose. 3) Het hele team zweeft in de lucht (sprong-foto!). Stuur de leukste in!", score_type: 'time' },
 ]
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const [events, setEvents] = useState<Event[]>([])
   const [activeEvent, setActiveEvent] = useState<Event | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [tab, setTab] = useState<'event' | 'qr' | 'teams' | 'scores'>('event')
   const [loading, setLoading] = useState(false)
-  const [newEvent, setNewEvent] = useState({
-    name: 'Body Rock Familie Fun',
-    edition: 'Zomer 2026',
-    date: '',
-    location: 'De Balijhoeve, Zoetermeer',
-  })
-
+  const [newEvent, setNewEvent] = useState({ name: 'Body Rock Familie Fun', edition: 'Zomer 2026', date: '', location: 'De Balijhoeve, Zoetermeer' })
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   useEffect(() => { loadEvents() }, [])
@@ -94,7 +38,6 @@ export default function AdminDashboard() {
     const res = await fetch('/api/admin/events')
     if (res.status === 401) { router.push('/admin'); return }
     const data = await res.json()
-    setEvents(data)
     const active = data.find((e: Event) => e.is_active)
     if (active) {
       setActiveEvent(active)
@@ -106,8 +49,7 @@ export default function AdminDashboard() {
 
   async function loadTeams(eventId: string) {
     const res = await fetch(`/api/teams?event_id=${eventId}`)
-    const data = await res.json()
-    setTeams(data)
+    setTeams(await res.json())
   }
 
   async function loadChallenges(eventId: string) {
@@ -126,14 +68,10 @@ export default function AdminDashboard() {
     })
     const event = await res.json()
     setActiveEvent(event)
-    setEvents(prev => [event, ...prev])
 
-    // Auto-create challenges
     const { createClient } = await import('@supabase/supabase-js')
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    await db.from('challenges').insert(
-      CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i }))
-    )
+    await db.from('challenges').insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
     setChallenges(CHALLENGES_2026.map((c, i) => ({ ...c, id: `tmp-${i}` })))
     setLoading(false)
     setTab('qr')
@@ -141,28 +79,32 @@ export default function AdminDashboard() {
 
   const eventQrUrl = activeEvent ? getEventUrl(activeEvent.event_code) : ''
 
+  const tabLabels = { event: '📅 Event', qr: '📱 QR-code', teams: '👥 Teams', scores: '🏆 Scores' }
+
   return (
     <main className="min-h-screen p-4 pb-24">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6 mt-2">
-        <h1 className="text-xl font-bold">Admin 🤘</h1>
+        <Logo />
         {activeEvent && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-400">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full text-white" style={{background: 'var(--br-red)'}}>
             {activeEvent.edition}
           </span>
         )}
       </div>
 
+      <h1 className="text-xl font-bold mb-4">Admin 🤘</h1>
+
       {/* Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {(['event', 'qr', 'teams', 'scores'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-              tab === t ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/15'
-            }`}
-          >
-            {{ event: '📅 Event', qr: '📱 QR-code', teams: '👥 Teams', scores: '🏆 Scores' }[t]}
+          <button key={t} onClick={() => setTab(t)}
+            className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors"
+            style={tab === t
+              ? { background: 'var(--br-red)', color: 'white' }
+              : { background: 'rgba(0,0,0,0.07)', color: 'var(--br-muted)' }
+            }>
+            {tabLabels[t]}
           </button>
         ))}
       </div>
@@ -174,33 +116,29 @@ export default function AdminDashboard() {
             <div className="card">
               <h2 className="font-semibold mb-4">Nieuw event aanmaken</h2>
               <div className="flex flex-col gap-3">
-                <input className="input" placeholder="Event naam" value={newEvent.name}
-                  onChange={e => setNewEvent(p => ({ ...p, name: e.target.value }))} />
-                <input className="input" placeholder="Editie (bijv. Zomer 2026)" value={newEvent.edition}
-                  onChange={e => setNewEvent(p => ({ ...p, edition: e.target.value }))} />
-                <input className="input" type="date" value={newEvent.date}
-                  onChange={e => setNewEvent(p => ({ ...p, date: e.target.value }))} />
-                <input className="input" placeholder="Locatie" value={newEvent.location}
-                  onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))} />
+                <input className="input" placeholder="Event naam" value={newEvent.name} onChange={e => setNewEvent(p => ({ ...p, name: e.target.value }))} />
+                <input className="input" placeholder="Editie" value={newEvent.edition} onChange={e => setNewEvent(p => ({ ...p, edition: e.target.value }))} />
+                <input className="input" type="date" value={newEvent.date} onChange={e => setNewEvent(p => ({ ...p, date: e.target.value }))} />
+                <input className="input" placeholder="Locatie" value={newEvent.location} onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))} />
                 <button className="btn-primary" onClick={createEvent} disabled={loading || !newEvent.date}>
                   {loading ? 'Aanmaken...' : 'Event aanmaken → QR genereren'}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="card border-green-500/30">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-green-400 text-sm font-semibold">Actief event</span>
+            <div className="card" style={{borderLeft: '4px solid #22c55e'}}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-semibold text-green-600">Actief event</span>
               </div>
               <div className="font-bold text-lg">{activeEvent.name}</div>
-              <div className="text-white/60 text-sm">{activeEvent.edition} · {activeEvent.date}</div>
-              <div className="mt-4 flex flex-col gap-2">
+              <div className="text-sm mb-4" style={{color: 'var(--br-muted)'}}>{activeEvent.edition} · {activeEvent.date}</div>
+              <div className="flex flex-col gap-2">
                 {challenges.map(c => (
-                  <div key={c.id} className="flex items-center gap-3 text-sm">
-                    <span className="text-orange-400 w-5 shrink-0">{c.number}.</span>
-                    <span className="flex-1 text-white/80 truncate">{c.title}</span>
-                    <span className="text-white/30 text-xs shrink-0">{c.score_type === 'time' ? '⏱' : '🔢'}</span>
+                  <div key={c.id} className="flex items-center gap-3 text-sm py-1 border-t" style={{borderColor: 'rgba(0,0,0,0.06)'}}>
+                    <span className="w-5 shrink-0 font-semibold" style={{color: 'var(--br-red)'}}>{c.number}.</span>
+                    <span className="flex-1 truncate">{c.title}</span>
+                    <span className="text-xs shrink-0" style={{color: 'var(--br-muted)'}}>{c.score_type === 'time' ? '⏱' : '🔢'}</span>
                   </div>
                 ))}
               </div>
@@ -209,43 +147,31 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* QR tab — de centrale QR voor de dag */}
+      {/* QR tab */}
       {tab === 'qr' && (
         <div className="flex flex-col gap-4">
           {!activeEvent ? (
-            <div className="card text-center text-white/50 py-10">
-              Maak eerst een event aan
-            </div>
+            <div className="card text-center py-10" style={{color: 'var(--br-muted)'}}>Maak eerst een event aan</div>
           ) : (
             <>
               <div className="card flex flex-col items-center gap-4 py-8">
                 <div className="text-center mb-2">
                   <div className="font-bold text-lg">{activeEvent.name}</div>
-                  <div className="text-white/50 text-sm">{activeEvent.edition}</div>
+                  <div className="text-sm" style={{color: 'var(--br-muted)'}}>{activeEvent.edition}</div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl">
+                <div className="bg-white p-4 rounded-2xl border" style={{borderColor: 'rgba(0,0,0,0.1)'}}>
                   <QRCode value={eventQrUrl} size={200} />
                 </div>
-                <div className="font-mono text-orange-400 text-2xl tracking-widest">
-                  {activeEvent.event_code}
-                </div>
-                <p className="text-white/50 text-xs text-center max-w-xs">
-                  Toon of print deze QR op de dag zelf. Teams scannen dit en maken zelf hun team aan.
-                </p>
-                <div className="bg-white/5 rounded-xl px-4 py-2 w-full text-center">
-                  <span className="text-white/40 text-xs break-all">{eventQrUrl}</span>
+                <div className="font-mono font-bold text-2xl tracking-widest" style={{color: 'var(--br-red)'}}>{activeEvent.event_code}</div>
+                <p className="text-xs text-center max-w-xs" style={{color: 'var(--br-muted)'}}>Teams scannen dit en maken zelf hun team aan.</p>
+                <div className="rounded-xl px-4 py-2 w-full text-center" style={{background: 'rgba(0,0,0,0.04)'}}>
+                  <span className="text-xs break-all" style={{color: 'var(--br-muted)'}}>{eventQrUrl}</span>
                 </div>
               </div>
-
               <div className="card">
-                <div className="text-sm text-white/60 mb-1">Aangemelde teams</div>
-                <div className="text-3xl font-bold text-orange-400">{teams.length}</div>
-                <button
-                  onClick={() => activeEvent && loadTeams(activeEvent.id)}
-                  className="text-white/40 text-xs mt-2 hover:text-white/60 transition-colors"
-                >
-                  Vernieuwen ↻
-                </button>
+                <div className="text-sm mb-1" style={{color: 'var(--br-muted)'}}>Aangemelde teams</div>
+                <div className="text-3xl font-bold" style={{color: 'var(--br-red)'}}>{teams.length}</div>
+                <button onClick={() => activeEvent && loadTeams(activeEvent.id)} className="text-xs mt-2 hover:underline" style={{color: 'var(--br-muted)'}}>Vernieuwen ↻</button>
               </div>
             </>
           )}
@@ -256,28 +182,23 @@ export default function AdminDashboard() {
       {tab === 'teams' && (
         <div className="flex flex-col gap-3">
           {teams.length === 0 ? (
-            <div className="card text-center text-white/50 py-10">
-              Nog geen teams aangemeld.<br />
-              <span className="text-sm">Teams joinen via de QR-code.</span>
-            </div>
+            <div className="card text-center py-10" style={{color: 'var(--br-muted)'}}>Nog geen teams aangemeld.<br /><span className="text-sm">Teams joinen via de QR-code.</span></div>
           ) : (
             teams.map(team => (
               <div key={team.id} className="card flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{team.name}</div>
-                  <div className="text-white/50 text-sm">Captain: {team.captain_name || '—'}</div>
+                  <div className="text-sm" style={{color: 'var(--br-muted)'}}>Captain: {team.captain_name || '—'}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-orange-400 font-bold">{team.scores?.length || 0}</div>
-                  <div className="text-white/40 text-xs">challenges</div>
+                  <div className="font-bold" style={{color: 'var(--br-red)'}}>{team.scores?.length || 0}</div>
+                  <div className="text-xs" style={{color: 'var(--br-muted)'}}>challenges</div>
                 </div>
               </div>
             ))
           )}
           {teams.length > 0 && (
-            <button onClick={() => activeEvent && loadTeams(activeEvent.id)} className="btn-secondary text-sm">
-              Vernieuwen ↻
-            </button>
+            <button onClick={() => activeEvent && loadTeams(activeEvent.id)} className="btn-secondary text-sm">Vernieuwen ↻</button>
           )}
         </div>
       )}
@@ -285,29 +206,23 @@ export default function AdminDashboard() {
       {/* Scores tab */}
       {tab === 'scores' && (
         <div className="flex flex-col gap-3">
-          <p className="text-white/50 text-sm mb-1">Scores per team — controleer of het realistisch is.</p>
-          {teams
-            .sort((a, b) => (b.scores?.length || 0) - (a.scores?.length || 0))
-            .map(team => (
-              <div key={team.id} className="card">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold">{team.name}</span>
-                  <span className="text-orange-400 text-sm font-bold">
-                    {team.scores?.length || 0}/{challenges.length}
-                  </span>
-                </div>
-                {(team.scores || []).map((s: any) => (
-                  <div key={s.id} className="flex items-center gap-3 py-1.5 border-t border-white/5 text-sm">
-                    <span className="text-white/40 w-4 shrink-0">{s.challenges?.number}</span>
-                    <span className="flex-1 text-white/70 truncate">{s.challenges?.title}</span>
-                    {s.photo_url && <span>📷</span>}
-                  </div>
-                ))}
+          <p className="text-sm mb-1" style={{color: 'var(--br-muted)'}}>Scores per team — controleer of het realistisch is.</p>
+          {teams.sort((a, b) => (b.scores?.length || 0) - (a.scores?.length || 0)).map(team => (
+            <div key={team.id} className="card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold">{team.name}</span>
+                <span className="font-bold text-sm" style={{color: 'var(--br-red)'}}>{team.scores?.length || 0}/{challenges.length}</span>
               </div>
-            ))}
-          {teams.length === 0 && (
-            <div className="card text-center text-white/50 py-10">Nog geen scores</div>
-          )}
+              {(team.scores || []).map((s: any) => (
+                <div key={s.id} className="flex items-center gap-3 py-1.5 text-sm" style={{borderTop: '1px solid rgba(0,0,0,0.06)'}}>
+                  <span className="w-4 shrink-0" style={{color: 'var(--br-muted)'}}>{s.challenges?.number}</span>
+                  <span className="flex-1 truncate">{s.challenges?.title}</span>
+                  {s.photo_url && <span>📷</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+          {teams.length === 0 && <div className="card text-center py-10" style={{color: 'var(--br-muted)'}}>Nog geen scores</div>}
         </div>
       )}
     </main>
