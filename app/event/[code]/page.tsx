@@ -125,11 +125,11 @@ export default function EventJoinPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-sm mb-2 block" style={{color: 'var(--br-muted)'}}>Teamnaam 🪨</label>
-            <input className="input" placeholder="bijv. De Rots Gevallen" value={teamName} onChange={e => setTeamName(e.target.value)} maxLength={40} required />
+            <input className="input" placeholder="bijv. Top Rockers" value={teamName} onChange={e => setTeamName(e.target.value)} maxLength={40} required />
           </div>
           <div>
             <label className="text-sm mb-2 block" style={{color: 'var(--br-muted)'}}>Naam teamcaptain (jongste) 👶</label>
-            <input className="input" placeholder="Voornaam" value={captainName} onChange={e => setCaptainName(e.target.value)} maxLength={40} required />
+            <input className="input" placeholder="Naam van de team🧑‍✈️ " value={captainName} onChange={e => setCaptainName(e.target.value)} maxLength={40} required />
           </div>
           {error && <div className="rounded-xl px-4 py-3 text-sm" style={{background: 'rgba(188,0,0,0.08)', color: 'var(--br-red)'}}>{error}</div>}
           <button type="submit" className="btn-primary text-lg py-4" disabled={loading}>

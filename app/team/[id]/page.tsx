@@ -25,6 +25,8 @@ export default function TeamPage() {
   const [activeStep, setActiveStep] = useState<ChallengeStep | null>(null)
   const [stepPhoto, setStepPhoto] = useState<File | null>(null)
   const [stepPhotoPreview, setStepPhotoPreview] = useState<string | null>(null)
+  const [stepSubmitting, setStepSubmitting] = useState(false)
+  const [stepError, setStepError] = useState('')
 
   // Score form state
   const [reps, setReps] = useState('')
@@ -55,6 +57,33 @@ export default function TeamPage() {
     return () => clearInterval(interval)
   }, [])
 
+  // Android "terug" knop: sluit een open modal i.p.v. de pagina te verlaten
+  useEffect(() => {
+    function handlePopState() {
+      if (activeStep) { setActiveStep(null); return }
+      if (activeChallenge) { setActiveChallenge(null); return }
+      if (funModalOpen) { setFunModalOpen(false); return }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [activeChallenge, activeStep, funModalOpen])
+
+  // Elke keer dat een modal opent, pusht een history-entry zodat terug-knop 'm sluit
+  function pushModalHistory() {
+    window.history.pushState({ modal: true }, '')
+  }
+
+  // Sluit een modal en houd de history-stack synchroon (voor Android terug-knop)
+  function closeModal() {
+    if (window.history.state?.modal) {
+      window.history.back()
+    } else {
+      setActiveChallenge(null)
+      setActiveStep(null)
+      setFunModalOpen(false)
+    }
+  }
+
   async function loadData() {
     const { data: teamData } = await supabase.from('teams').select('name, event_id, start_challenge').eq('id', teamId).single()
     if (!teamData) { router.push('/join'); return }
@@ -82,6 +111,7 @@ export default function TeamPage() {
 
   async function openChallenge(challenge: Challenge, index: number) {
     if (!isUnlocked(index)) return
+    pushModalHistory()
 
     const existing = scores[challenge.id]
     setActiveChallenge(challenge)
@@ -134,35 +164,43 @@ export default function TeamPage() {
     setSubmitError('')
     setSubmitting(true)
 
-    let photoUrl = scores[activeChallenge.id]?.photo_url || null
+    try {
+      let photoUrl = scores[activeChallenge.id]?.photo_url || null
 
-    if (photo) {
-      const fd = new FormData()
-      fd.append('file', photo)
-      fd.append('team_id', teamId)
-      fd.append('challenge_id', activeChallenge.id)
-      const res = await fetch('/api/upload', { method: 'POST', body: fd })
-      const json = await res.json()
-      photoUrl = json.url
+      if (photo) {
+        const fd = new FormData()
+        fd.append('file', photo)
+        fd.append('team_id', teamId)
+        fd.append('challenge_id', activeChallenge.id)
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+        if (!uploadRes.ok) throw new Error('upload-failed')
+        const json = await uploadRes.json()
+        if (!json.url) throw new Error('upload-failed')
+        photoUrl = json.url
+      }
+
+      const payload: Record<string, unknown> = { team_id: teamId, challenge_id: activeChallenge.id, photo_url: photoUrl }
+
+      if (activeChallenge.score_type === 'time') {
+        const existing = scores[activeChallenge.id]
+        const elapsed = getElapsedSeconds(existing)
+        payload.minutes = Math.floor(elapsed / 60)
+        payload.seconds = elapsed % 60
+        payload.started_at = existing?.started_at || null
+      } else {
+        payload.reps = parseInt(reps) || 0
+      }
+
+      const res = await fetch('/api/scores', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } })
+      if (!res.ok) throw new Error('save-failed')
+      const saved = await res.json()
+      setScores(prev => ({ ...prev, [activeChallenge.id]: saved }))
+      setActiveChallenge(null)
+    } catch {
+      setSubmitError('Opslaan is niet gelukt — check je internetverbinding en probeer opnieuw.')
+    } finally {
+      setSubmitting(false)
     }
-
-    const payload: Record<string, unknown> = { team_id: teamId, challenge_id: activeChallenge.id, photo_url: photoUrl }
-
-    if (activeChallenge.score_type === 'time') {
-      const existing = scores[activeChallenge.id]
-      const elapsed = getElapsedSeconds(existing)
-      payload.minutes = Math.floor(elapsed / 60)
-      payload.seconds = elapsed % 60
-      payload.started_at = existing?.started_at || null
-    } else {
-      payload.reps = parseInt(reps) || 0
-    }
-
-    const res = await fetch('/api/scores', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } })
-    const saved = await res.json()
-    setScores(prev => ({ ...prev, [activeChallenge.id]: saved }))
-    setActiveChallenge(null)
-    setSubmitting(false)
   }
 
   // Sub-opdracht afvinken
@@ -176,28 +214,40 @@ export default function TeamPage() {
   async function handleStepSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!activeStep) return
+    if (!stepPhoto && !completions[activeStep.id]?.photo_url) return
+    setStepSubmitting(true)
+    setStepError('')
 
-    let photoUrl = completions[activeStep.id]?.photo_url || null
-    if (stepPhoto) {
-      const fd = new FormData()
-      fd.append('file', stepPhoto)
-      fd.append('team_id', teamId)
-      fd.append('step_id', activeStep.id)
-      const res = await fetch('/api/upload', { method: 'POST', body: fd })
-      const json = await res.json()
-      photoUrl = json.url
+    try {
+      let photoUrl = completions[activeStep.id]?.photo_url || null
+      if (stepPhoto) {
+        const fd = new FormData()
+        fd.append('file', stepPhoto)
+        fd.append('team_id', teamId)
+        fd.append('step_id', activeStep.id)
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+        if (!uploadRes.ok) throw new Error('upload-failed')
+        const json = await uploadRes.json()
+        if (!json.url) throw new Error('upload-failed')
+        photoUrl = json.url
+      }
+
+      const res = await fetch('/api/steps', {
+        method: 'POST',
+        body: JSON.stringify({ team_id: teamId, step_id: activeStep.id, photo_url: photoUrl }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error('save-failed')
+      const saved = await res.json()
+      setCompletions(prev => ({ ...prev, [activeStep.id]: saved }))
+      setActiveStep(null)
+      setStepPhoto(null)
+      setStepPhotoPreview(null)
+    } catch {
+      setStepError('Opslaan is niet gelukt — probeer opnieuw.')
+    } finally {
+      setStepSubmitting(false)
     }
-
-    const res = await fetch('/api/steps', {
-      method: 'POST',
-      body: JSON.stringify({ team_id: teamId, step_id: activeStep.id, photo_url: photoUrl }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const saved = await res.json()
-    setCompletions(prev => ({ ...prev, [activeStep.id]: saved }))
-    setActiveStep(null)
-    setStepPhoto(null)
-    setStepPhotoPreview(null)
   }
 
   // Fun foto upload — meerdere foto's tegelijk, met grootte-check
@@ -225,29 +275,38 @@ export default function TeamPage() {
     e.preventDefault()
     if (!funPhotoFiles.length) return
     setFunUploading(true)
+    setFunError('')
 
-    const newPhotos: FunPhoto[] = []
-    for (const file of funPhotoFiles) {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('team_id', teamId)
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
-      const { url } = await uploadRes.json()
+    try {
+      const newPhotos: FunPhoto[] = []
+      for (const file of funPhotoFiles) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('team_id', teamId)
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+        if (!uploadRes.ok) throw new Error('upload-failed')
+        const { url } = await uploadRes.json()
+        if (!url) throw new Error('upload-failed')
 
-      const res = await fetch('/api/fun-photos', {
-        method: 'POST',
-        body: JSON.stringify({ team_id: teamId, photo_url: url }),
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const saved = await res.json()
-      newPhotos.push(saved)
+        const res = await fetch('/api/fun-photos', {
+          method: 'POST',
+          body: JSON.stringify({ team_id: teamId, photo_url: url }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (!res.ok) throw new Error('save-failed')
+        const saved = await res.json()
+        newPhotos.push(saved)
+      }
+
+      setFunPhotos(prev => [...newPhotos, ...prev])
+      setFunModalOpen(false)
+      setFunPhotoFiles([])
+      setFunPhotoPreviews([])
+    } catch {
+      setFunError('Uploaden is niet gelukt — check je internetverbinding en probeer opnieuw.')
+    } finally {
+      setFunUploading(false)
     }
-
-    setFunPhotos(prev => [...newPhotos, ...prev])
-    setFunModalOpen(false)
-    setFunPhotoFiles([])
-    setFunPhotoPreviews([])
-    setFunUploading(false)
   }
 
   const completedCount = Object.values(scores).filter(s => s.photo_url).length
@@ -278,7 +337,7 @@ export default function TeamPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{color: 'var(--br-muted)'}}>Fun foto&apos;s 🤘</h2>
-          <button onClick={() => setFunModalOpen(true)} className="btn-secondary text-xs py-1.5 px-3">+ Toevoegen</button>
+          <button onClick={() => { pushModalHistory(); setFunModalOpen(true) }} className="btn-secondary text-xs py-1.5 px-3">+ Toevoegen</button>
         </div>
         {funPhotos.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
@@ -338,7 +397,7 @@ export default function TeamPage() {
                 <div className="text-sm font-semibold mb-1" style={{ color: 'var(--br-red)' }}>Challenge {activeChallenge.number}</div>
                 <h2 className="text-xl font-bold">{activeChallenge.title}</h2>
               </div>
-              <button onClick={() => setActiveChallenge(null)} className="text-2xl leading-none ml-4" style={{ color: 'var(--br-muted)' }}>×</button>
+              <button onClick={closeModal} className="text-2xl leading-none ml-4" style={{ color: 'var(--br-muted)' }}>×</button>
             </div>
 
             {activeChallenge.description && (
@@ -367,6 +426,7 @@ export default function TeamPage() {
                         key={step.id}
                         type="button"
                         onClick={() => {
+                          pushModalHistory()
                           setActiveStep(step)
                           setStepPhotoPreview(comp?.photo_url || null)
                           setStepPhoto(null)
@@ -430,7 +490,7 @@ export default function TeamPage() {
           <div className="w-full rounded-t-3xl p-6" style={{ background: 'var(--br-offwhite)' }}>
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-bold">Opdracht {activeStep.step_number}</h2>
-              <button onClick={() => setActiveStep(null)} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
+              <button onClick={closeModal} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
             </div>
             <p className="text-sm mb-4" style={{ color: 'var(--br-muted)' }}>{activeStep.description}</p>
 
@@ -448,8 +508,14 @@ export default function TeamPage() {
               )}
               <input ref={stepFileRef} type="file" accept="image/*" capture="environment" onChange={handleStepPhotoChange} className="hidden" />
 
-              <button type="submit" className="btn-primary" disabled={!stepPhoto && !completions[activeStep.id]?.photo_url}>
-                Opdracht afvinken 🤘
+              {stepError && (
+                <div className="text-sm text-center rounded-xl px-4 py-3" style={{ background: 'rgba(188,0,0,0.08)', color: 'var(--br-red)' }}>
+                  {stepError}
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary" disabled={stepSubmitting || (!stepPhoto && !completions[activeStep.id]?.photo_url)}>
+                {stepSubmitting ? 'Opslaan...' : 'Opdracht afvinken 🤘'}
               </button>
             </form>
           </div>
@@ -462,7 +528,7 @@ export default function TeamPage() {
           <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--br-offwhite)' }}>
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-bold">Fun foto&apos;s toevoegen 🤘</h2>
-              <button onClick={() => { setFunModalOpen(false); setFunPhotoFiles([]); setFunPhotoPreviews([]); setFunError('') }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
+              <button onClick={() => { closeModal(); setFunPhotoFiles([]); setFunPhotoPreviews([]); setFunError('') }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
             </div>
             <p className="text-sm mb-4" style={{ color: 'var(--br-muted)' }}>Geen score nodig — gewoon voor de lol. Je kunt meerdere foto&apos;s tegelijk kiezen (max {MAX_PHOTO_MB}MB per foto). Verschijnt op het message board!</p>
 
