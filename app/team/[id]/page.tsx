@@ -106,7 +106,7 @@ export default function TeamPage() {
   function isUnlocked(index: number): boolean {
     if (index === 0) return true
     const prevChallenge = orderedChallenges[index - 1]
-    return !!scores[prevChallenge.id]
+    return !!scores[prevChallenge.id]?.photo_url  // alleen afgerond als foto is geüpload
   }
 
   async function openChallenge(challenge: Challenge, index: number) {
@@ -401,7 +401,7 @@ export default function TeamPage() {
             </div>
 
             {activeChallenge.description && (
-              <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--br-muted)' }}>{activeChallenge.description}</p>
+              <div className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--br-muted)', whiteSpace: 'pre-line' }}>{activeChallenge.description}</div>
             )}
 
             {/* Live timer */}
