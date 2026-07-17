@@ -60,7 +60,7 @@ export default function JoinPage() {
     <main className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🤘</div>
+          <div className="text-4xl mb-3">💪🏼</div>
           <h1 className="text-2xl font-bold">Join je team</h1>
           <p className="text-white/50 text-sm mt-1">Body Rock Familie Fun Event</p>
         </div>

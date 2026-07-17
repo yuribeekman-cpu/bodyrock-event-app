@@ -61,7 +61,7 @@ export default function BoardPage() {
       .eq('teams.event_id', eventData.id)
 
     funData?.forEach((f: any) => {
-      if (f.teams) allPhotos.push({ id: f.id, photo_url: f.photo_url, team_name: f.teams.name, label: 'Fun foto 🤘', submitted_at: f.submitted_at, isFun: true })
+      if (f.teams) allPhotos.push({ id: f.id, photo_url: f.photo_url, team_name: f.teams.name, label: 'Fun foto 💪🏼', submitted_at: f.submitted_at, isFun: true })
     })
 
     allPhotos.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())

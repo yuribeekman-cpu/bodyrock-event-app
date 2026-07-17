@@ -76,7 +76,15 @@ export default function EventJoinPage() {
       .select('id', { count: 'exact', head: true })
       .eq('event_id', event.id)
 
-    const total = challengeCount || 10
+    // Geen fallback: staan er geen challenges, dan is het event niet klaar.
+    // Dit is precies de regel die de lege database had verraden i.p.v. verstopt.
+    if (!challengeCount) {
+      setError('Dit event staat nog niet helemaal klaar (nog geen challenges). Vraag even een trainer.')
+      setLoading(false)
+      return
+    }
+
+    const total = challengeCount
     const start_challenge = ((count || 0) % total) + 1
 
     const join_code = Array.from({ length: 6 }, () =>
@@ -133,7 +141,7 @@ export default function EventJoinPage() {
           </div>
           {error && <div className="rounded-xl px-4 py-3 text-sm" style={{background: 'rgba(188,0,0,0.08)', color: 'var(--br-red)'}}>{error}</div>}
           <button type="submit" className="btn-primary text-lg py-4" disabled={loading}>
-            {loading ? 'Team aanmaken...' : "Let's rock! 🤘"}
+            {loading ? 'Team aanmaken...' : "Let's rock! 💪🏼"}
           </button>
         </form>
       </div>

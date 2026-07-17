@@ -121,36 +121,67 @@ export default function AdminDashboard() {
 
   async function createEvent() {
     setLoading(true)
-    const res = await fetch('/api/admin/events', {
-      method: 'POST',
-      body: JSON.stringify({ ...newEvent, is_active: true }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const event = await res.json()
-    setEvents(prev => [event, ...prev])
-    setSelectedEvent(event)
-    setShowNewForm(false)
+    try {
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        body: JSON.stringify({ ...newEvent, is_active: true }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error(`Event aanmaken mislukt (HTTP ${res.status}).`)
+      const event = await res.json()
 
-    const { createClient } = await import('@supabase/supabase-js')
-    const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const { data: insertedChallenges } = await db
-      .from('challenges')
-      .insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
-      .select()
-    setChallenges(insertedChallenges || CHALLENGES_2026.map((c, i) => ({ ...c, id: `tmp-${i}` })))
+      const { createClient } = await import('@supabase/supabase-js')
+      const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-    const challenge10 = insertedChallenges?.find((c: any) => c.number === 10)
-    if (challenge10) {
-      await db.from('challenge_steps').insert([
-        { challenge_id: challenge10.id, step_number: 1, description: "Het team vormt met hun lichamen het getal '10' op het gras", sort_order: 0 },
-        { challenge_id: challenge10.id, step_number: 2, description: 'Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet', sort_order: 1 },
-        { challenge_id: challenge10.id, step_number: 3, description: 'Het hele team zweeft in de lucht (een perfect getimede sprong-foto!)', sort_order: 2 },
-      ])
+      // Challenges wegschrijven — fout niet opslikken maar opgooien.
+      const { data: insertedChallenges, error: chErr } = await db
+        .from('challenges')
+        .insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
+        .select()
+      if (chErr) throw new Error(`Challenges toevoegen mislukt: ${chErr.message}`)
+
+      const challenge10 = insertedChallenges?.find((c: any) => c.number === 10)
+      if (challenge10) {
+        const { error: stepErr } = await db.from('challenge_steps').insert([
+          { challenge_id: challenge10.id, step_number: 1, description: "Het team vormt met hun lichamen het getal '10' op het gras", sort_order: 0 },
+          { challenge_id: challenge10.id, step_number: 2, description: 'Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet', sort_order: 1 },
+          { challenge_id: challenge10.id, step_number: 3, description: 'Het hele team zweeft in de lucht (een perfect getimede sprong-foto!)', sort_order: 2 },
+        ])
+        if (stepErr) throw new Error(`Sub-opdrachten toevoegen mislukt: ${stepErr.message}`)
+      }
+
+      // Verifieer uit de DB (niet uit de array in het geheugen): tel terug wat er echt staat.
+      const { count: chCount, error: cntErr } = await db
+        .from('challenges').select('id', { count: 'exact', head: true }).eq('event_id', event.id)
+      if (cntErr) throw new Error(`Verificatie van challenges mislukt: ${cntErr.message}`)
+      const { count: stepCount } = await db
+        .from('challenge_steps').select('id, challenges!inner(event_id)', { count: 'exact', head: true })
+        .eq('challenges.event_id', event.id)
+
+      if (chCount !== CHALLENGES_2026.length || stepCount !== 3) {
+        // Beter geen event dan een leeg event: zet 'm meteen inactief.
+        await db.from('events').update({ is_active: false }).eq('id', event.id)
+        throw new Error(
+          `Verificatie faalde: ${chCount} challenges + ${stepCount} sub-opdrachten in de DB, ` +
+          `verwacht ${CHALLENGES_2026.length} + 3. Het event is op INACTIEF gezet — niet gebruiken. ` +
+          `Probeer opnieuw of check de database.`
+        )
+      }
+
+      // Alles klopt — nu pas de UI-state bijwerken.
+      setEvents(prev => [event, ...prev])
+      setSelectedEvent(event)
+      setChallenges(insertedChallenges || [])
+      setTeams([])
+      setShowNewForm(false)
+      setTab('qr')
+    } catch (err) {
+      // Blokkerende foutmelding — geen stille fout.
+      alert(`⚠️ ${(err as Error).message}`)
+      loadEvents()
+    } finally {
+      setLoading(false)
     }
-
-    setTeams([])
-    setLoading(false)
-    setTab('qr')
   }
 
   const eventQrUrl = selectedEvent ? getEventUrl(selectedEvent.event_code) : ''
@@ -167,7 +198,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <h1 className="text-xl font-bold mb-4">Admin 🤘</h1>
+      <h1 className="text-xl font-bold mb-4">Admin 💪🏼</h1>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">

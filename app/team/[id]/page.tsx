@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, Challenge, Score, ChallengeStep, StepCompletion, FunPhoto } from '@/lib/supabase'
 import { formatScore, getRotatedOrder, formatTimer } from '@/lib/utils'
+import { generateOverlay } from '@/lib/photoOverlay'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
 
@@ -11,7 +12,7 @@ export default function TeamPage() {
   const router = useRouter()
   const teamId = params.id as string
 
-  const [team, setTeam] = useState<{ name: string; event_id: string; start_challenge: number } | null>(null)
+  const [team, setTeam] = useState<{ name: string; event_id: string; start_challenge: number; captain_name: string | null } | null>(null)
   const [orderedChallenges, setOrderedChallenges] = useState<Challenge[]>([])
   const [scores, setScores] = useState<Record<string, Score>>({})
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
@@ -32,6 +33,8 @@ export default function TeamPage() {
   const [reps, setReps] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  // De foto mét overlay-randje (bingo-footer). Null = geen overlay, dan gaat het origineel omhoog.
+  const [overlayBlob, setOverlayBlob] = useState<Blob | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const stepFileRef = useRef<HTMLInputElement>(null)
 
@@ -85,7 +88,7 @@ export default function TeamPage() {
   }
 
   async function loadData() {
-    const { data: teamData } = await supabase.from('teams').select('name, event_id, start_challenge').eq('id', teamId).single()
+    const { data: teamData } = await supabase.from('teams').select('name, event_id, start_challenge, captain_name').eq('id', teamId).single()
     if (!teamData) { router.push('/join'); return }
     setTeam(teamData)
 
@@ -119,17 +122,10 @@ export default function TeamPage() {
     setReps(existing?.reps?.toString() || '')
     setPhotoPreview(existing?.photo_url || null)
     setPhoto(null)
+    setOverlayBlob(null)
 
-    // Timer starten als die nog niet loopt en de challenge nog niet is afgerond
-    if (!existing?.started_at && !existing?.photo_url) {
-      const res = await fetch('/api/scores', {
-        method: 'PATCH',
-        body: JSON.stringify({ team_id: teamId, challenge_id: challenge.id }),
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const updated = await res.json()
-      setScores(prev => ({ ...prev, [challenge.id]: updated }))
-    }
+    // NB: de timer start hier bewust NIET meer. Het team mag de opdracht eerst
+    // rustig lezen; de klok begint pas op de expliciete Start-knop (startTimer).
 
     // Sub-opdrachten laden indien aanwezig
     const res = await fetch(`/api/steps?challenge_id=${challenge.id}&team_id=${teamId}`)
@@ -140,11 +136,38 @@ export default function TeamPage() {
     setCompletions(compMap)
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // Timer expliciet starten (Start-knop in de modal). De PATCH-route zet started_at
+  // alleen als die nog niet staat, dus dubbel klikken kan geen kwaad.
+  async function startTimer() {
+    if (!activeChallenge) return
+    const res = await fetch('/api/scores', {
+      method: 'PATCH',
+      body: JSON.stringify({ team_id: teamId, challenge_id: activeChallenge.id }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) return
+    const updated = await res.json()
+    setScores(prev => ({ ...prev, [activeChallenge.id]: updated }))
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setPhoto(file)
+    setOverlayBlob(null)
+    // Toon het origineel meteen, zodat de preview nooit "hangt" op de overlay.
     setPhotoPreview(URL.createObjectURL(file))
+
+    // Overlay-randje erop proberen. Lukt het niet, dan blijft het origineel staan.
+    const blob = await generateOverlay(file, {
+      teamName: team?.name || '',
+      captainName: team?.captain_name || '',
+      challengeName: activeChallenge?.title || '',
+    })
+    if (blob) {
+      setOverlayBlob(blob)
+      setPhotoPreview(URL.createObjectURL(blob))
+    }
   }
 
   function getElapsedSeconds(score?: Score): number {
@@ -168,8 +191,11 @@ export default function TeamPage() {
       let photoUrl = scores[activeChallenge.id]?.photo_url || null
 
       if (photo) {
+        // Overlay-versie uploaden als die er is; anders het origineel.
+        const uploadFile: Blob = overlayBlob ?? photo
+        const uploadName = overlayBlob ? 'overlay.jpg' : photo.name
         const fd = new FormData()
-        fd.append('file', photo)
+        fd.append('file', uploadFile, uploadName)
         fd.append('team_id', teamId)
         fd.append('challenge_id', activeChallenge.id)
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
@@ -221,8 +247,14 @@ export default function TeamPage() {
     try {
       let photoUrl = completions[activeStep.id]?.photo_url || null
       if (stepPhoto) {
+        // Overlay-randje ook op sub-opdracht-foto's. Faalt het → origineel.
+        const overlay = await generateOverlay(stepPhoto, {
+          teamName: team?.name || '',
+          captainName: team?.captain_name || '',
+          challengeName: activeChallenge?.title || '',
+        })
         const fd = new FormData()
-        fd.append('file', stepPhoto)
+        fd.append('file', overlay ?? stepPhoto, overlay ? 'overlay.jpg' : stepPhoto.name)
         fd.append('team_id', teamId)
         fd.append('step_id', activeStep.id)
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
@@ -280,8 +312,14 @@ export default function TeamPage() {
     try {
       const newPhotos: FunPhoto[] = []
       for (const file of funPhotoFiles) {
+        // Fun-foto's zijn de meest-gedeelde foto's → ook overlay, maar zonder
+        // challenge-naam (team + captain + footer volstaat). Faalt het → origineel.
+        const overlay = await generateOverlay(file, {
+          teamName: team?.name || '',
+          captainName: team?.captain_name || '',
+        })
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', overlay ?? file, overlay ? 'overlay.jpg' : file.name)
         fd.append('team_id', teamId)
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
         if (!uploadRes.ok) throw new Error('upload-failed')
@@ -336,7 +374,7 @@ export default function TeamPage() {
       {/* Fun foto's sectie — bovenaan */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{color: 'var(--br-muted)'}}>Fun foto&apos;s 🤘</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider" style={{color: 'var(--br-muted)'}}>Fun foto&apos;s 💪🏼</h2>
           <button onClick={() => { pushModalHistory(); setFunModalOpen(true) }} className="btn-secondary text-xs py-1.5 px-3">+ Toevoegen</button>
         </div>
         {funPhotos.length > 0 && (
@@ -404,6 +442,14 @@ export default function TeamPage() {
               <div className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--br-muted)', whiteSpace: 'pre-line' }}>{activeChallenge.description}</div>
             )}
 
+            {/* Start-knop: alleen bij tijd-challenges die nog niet lopen en nog niet af zijn.
+                Zo lekt er geen tijd tijdens lezen/opstellen — de klok begint als het team klaar is. */}
+            {activeChallenge.score_type === 'time' && !scores[activeChallenge.id]?.started_at && !scores[activeChallenge.id]?.photo_url && (
+              <button type="button" onClick={startTimer} className="btn-primary w-full mb-5 text-lg py-4">
+                ▶ Start de timer
+              </button>
+            )}
+
             {/* Live timer */}
             {scores[activeChallenge.id]?.started_at && !scores[activeChallenge.id]?.photo_url && (
               <div className="text-center mb-5 py-4 rounded-xl" style={{ background: 'rgba(188,0,0,0.06)' }}>
@@ -459,7 +505,7 @@ export default function TeamPage() {
                 {photoPreview ? (
                   <div className="relative" style={{ aspectRatio: '4/5' }}>
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
-                    <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
+                    <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null); setOverlayBlob(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => fileRef.current?.click()} className="w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors" style={{ borderColor: 'rgba(0,0,0,0.15)', color: 'var(--br-muted)' }}>
@@ -477,7 +523,7 @@ export default function TeamPage() {
               )}
 
               <button type="submit" className="btn-primary" disabled={submitting}>
-                {submitting ? 'Opslaan...' : 'Challenge afronden 🤘'}
+                {submitting ? 'Opslaan...' : 'Challenge afronden 💪🏼'}
               </button>
             </form>
           </div>
@@ -515,7 +561,7 @@ export default function TeamPage() {
               )}
 
               <button type="submit" className="btn-primary" disabled={stepSubmitting || (!stepPhoto && !completions[activeStep.id]?.photo_url)}>
-                {stepSubmitting ? 'Opslaan...' : 'Opdracht afvinken 🤘'}
+                {stepSubmitting ? 'Opslaan...' : 'Opdracht afvinken 💪🏼'}
               </button>
             </form>
           </div>
@@ -527,7 +573,7 @@ export default function TeamPage() {
         <div className="fixed inset-0 flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--br-offwhite)' }}>
             <div className="flex items-start justify-between mb-4">
-              <h2 className="text-lg font-bold">Fun foto&apos;s toevoegen 🤘</h2>
+              <h2 className="text-lg font-bold">Fun foto&apos;s toevoegen 💪🏼</h2>
               <button onClick={() => { closeModal(); setFunPhotoFiles([]); setFunPhotoPreviews([]); setFunError('') }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
             </div>
             <p className="text-sm mb-4" style={{ color: 'var(--br-muted)' }}>Geen score nodig — gewoon voor de lol. Je kunt meerdere foto&apos;s tegelijk kiezen (max {MAX_PHOTO_MB}MB per foto). Verschijnt op het message board!</p>

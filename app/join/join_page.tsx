@@ -89,7 +89,7 @@ export default function JoinPage() {
               <input className="input" placeholder="Voornaam" value={captainName} onChange={e => setCaptainName(e.target.value)} required />
             </div>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Opslaan...' : "Let's rock! 🤘"}
+              {loading ? 'Opslaan...' : "Let's rock! 💪🏼"}
             </button>
           </form>
         )}
