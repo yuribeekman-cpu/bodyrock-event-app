@@ -192,13 +192,26 @@ export async function generateOverlay(file: File, opts: OverlayOpts): Promise<Bl
     ctx.fillStyle = RED
     ctx.fillRect(0, footerTop, W, 8)
 
+    // Schaal de fontgrootte terug tot de tekst binnen de breedte past. Beschermt
+    // tegen font-fallback (Barlow Condensed → Arial) die breder uitpakt en anders
+    // rechts van beeld zou aflopen.
+    const fitFont = (text: string, weight: number, base: number, family: string, maxWidth: number) => {
+      let size = base
+      ctx.font = `${weight} ${size}px ${family}`
+      while (size > 14 && ctx.measureText(text).width > maxWidth) {
+        size -= 2
+        ctx.font = `${weight} ${size}px ${family}`
+      }
+    }
+    const maxTextW = W - 80 // 40px marge links en rechts
+
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = "700 52px 'Barlow Condensed', Arial, sans-serif"
+    fitFont(FOOTER_LINE_1, 700, 52, "'Barlow Condensed', Arial, sans-serif", maxTextW)
     ctx.fillText(FOOTER_LINE_1, W / 2, footerTop + footerH / 2 - 45)
     ctx.fillStyle = OFFWHITE
-    ctx.font = "400 36px 'Barlow', Arial, sans-serif"
+    fitFont(FOOTER_LINE_2, 400, 36, "'Barlow', Arial, sans-serif", maxTextW)
     ctx.fillText(FOOTER_LINE_2, W / 2, footerTop + footerH / 2 + 40)
 
     // ── Exporteren (dit is meteen de compressie) ────────────────────
