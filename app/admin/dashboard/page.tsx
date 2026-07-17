@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCode from 'react-qr-code'
 import { getEventUrl } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import Logo from '@/components/Logo'
 
 type Event = { id: string; name: string; edition: string; date: string; is_active: boolean; event_code: string }
@@ -12,62 +13,126 @@ type Challenge = { id: string; number: number; title: string; score_type: string
 const CHALLENGES_2026 = [
   {
     number: 1,
-    title: "Yuri's Bodyweight Endurance Challenge",
-    description: "Trainer Yuri weet als geen ander hoe je met pure lichaamskracht het uiterste uit een training haalt. We trappen het jubileum compact en gecontroleerd af bij het startpunt!\n\n• Eén teamlid is de 'kruiwagen' en legt een gecontroleerd parcours in de beleeftuin tussen de pionnen heen en terug af. Na telkens 5 burpees mag het volgende duo achter het eerste kruiwagenduo aan.\n• Iedereen komt één keer aan de beurt als kruiwagen.",
+    title: '🪨 De Body Rock Kruiwagen Crew',
+    description: `Pure lichaamskracht. Beheerst, gefocust, samen sterker.
+
+🛞 Eén gezinslid is de kruiwagen en loopt op de handen een parcours van 10 meter.
+🤝 De helper pakt de enkels (zwaar) of de knieën (een stuk makkelijker) — kies wat past.
+🦵 De rest houdt 30 seconden een squat hold en telt hardop af.
+🔁 Iedereen is één keer de kruiwagen, op jouw tempo.
+🐻 Te zwaar of pols niet blij? Dan doe je het parcours als bearcrawl (op handen en voeten, knieën net van de grond).`,
     score_type: 'time',
   },
   {
     number: 2,
-    title: "Irene's Hub Focus-Check",
-    description: "Weet jij waar de Body Rock Hub is? De Hub is sinds kort de plek waar de Ready trainingen gegeven worden. Het pad er naartoe kan alleen bewandeld worden met walking lunges, terug kan je alleen als stoere bear, dus laat je beste bearwalk zien.\n\n• Het hele team gaat in een strakke plank-positie (hoge of lage plank) op het gras staan, met de blik gericht op de Hub.\n• Terwijl de rest de plank vasthoudt, sprint één gezinslid een snel en geruisloos rondje om de rest heen.\n• Zodra de loper terug is, wisselt de beurt. De tijd stopt pas als iedereen de Hub-wacht heeft gelopen. Houd het fluisterend!",
+    title: '🪨 De Lunge & Crawl Estafette',
+    description: `Focus is niet stilstaan. Focus is doorgaan als het brandt.
+
+🎯 Zet een pion op 25 meter — dat is jullie punt.
+🚶 Twee teamleden lopen er met walking lunges naartoe (grote stap, achterste knie zakt richting de grond).
+🐻 Terug gaan ze als bearcrawl, zo strak mogelijk.
+📣 De rest is het levende scorebord: elke lunge hardop meetellen en aanmoedigen.
+🚦 De jongste is startcommandant: hij of zij telt af en roept "GO" — niemand vertrekt zonder dat sein.
+🔁 Terug bij de start? High five en de volgende twee gaan.
+⏱️ De klok stopt pas als iedereen is geweest.`,
     score_type: 'time',
   },
   {
     number: 3,
-    title: "Lorraine's Body Rock Tunnel-Plank",
-    description: "De verjaardagstaart moet veilig door de jungle worden getransporteerd via een menselijke tunnel!\n\n• Alle teamleden (behalve één) gaan achter elkaar in een hoge plank-positie staan.\n• De achterste persoon kruipt als een slang onder de planken door naar voren.\n• Doe dit totdat het volledige team in totaal 10 keer onder de tunnel door is gekropen.",
+    title: '🪨 De Body Rock Tunnel',
+    description: `Eén vloeiende machine. Samen sterker.
+
+〰️ Vorm de tunnel: ga achter elkaar in hoge plank — dat is de tunnel.
+📣 De achterste roept "DOOR" en tijgert plat op z'n buik tussen de benen door naar voren.
+✅ Vooraan aansluiten in hoge plank — en de nieuwe achterste vertrekt.
+🔁 Klaar als iedereen twee keer door de tunnel is geweest.
+🚪 De jongsten vormen geen tunnel maar staan bij de pion als eindpoort en maken foto's.`,
     score_type: 'time',
   },
   {
     number: 4,
-    title: "Marjons Kangoeroe-Lancering",
-    description: "Trainster Marjon houdt wel van een sprintje en een flinke sprong. Zij daagt jullie uit om explosief over het veld te vliegen en kostbare seconden te winnen voor jullie teamscore!\n\n• De ouders vormen een 'stoeltje' of de kinderen springen op de rug (piggyback).\n• Sprint naar de pion (20 meter verderop). Bij de pylon doet de drager 10 'Kangoeroe-skips' (hoge sprongen).\n• Sprint terug en wissel van duo tot iedereen is geweest.",
+    title: '🪨 De Kangoeroe-Lancering',
+    description: `Hartslag omhoog, meters maken.
+
+🦘 Een volwassene draagt een kind op de rug (piggyback) of op een handenstoeltje.
+🏃 Sprint samen naar de pion op 20 meter.
+⬆️ Bij de pion: kind op de grond zetten — samen 10 hoge kangoeroesprongen, knieën hoog.
+🏃 Sprint terug en wissel direct naar het volgende duo.
+👥 Dragen geen optie? Dan spring je als duo zij aan zij het parcours — even hard, even leuk.`,
     score_type: 'time',
   },
   {
     number: 5,
-    title: "Wessels Speedladder Voetbal-Sniper",
-    description: "Trainer Wessel test vandaag jullie ultieme precisie en balgevoel met de jubileum-voetbal!\n\n• Leg de speedladder uit op het grasveld. De treden van de ladder zijn genummerd van 1 tot en met 10.\n• De gezinsleden moeten om de beurt vanaf een afstand (bijv. 5 meter) de voetbal rollen met als doel deze precies in trede 10 stil te laten liggen.\n• De uitdaging: probeer zo snel mogelijk de bal achter elkaar in trede 1, trede 5 en trede 10 te rollen. Terwijl één iemand mikt, blijft de rest van de familie squats of lunges maken totdat het is gelukt!",
-    score_type: 'time',
+    title: '🪨 De Speedladder Sniper Relay',
+    description: `Precisie onder hartslag. Daar scheiden zich de wegen.
+
+🏃 Sprint eerst met snelle voetjes door de speedladder heen en terug.
+🦵🏻 Aan het eind van de speedladder ligt de jubileumbal.
+⚽ Schop of rol de bal naar de ladder: kids vanaf 3 meter, volwassenen vanaf 5 meter.
+🎯 Bal stil op trede 10 = 10 punten, trede 8/9/11/12 = 5 punten.
+📣 De rest van het team moedigt keihard aan tijdens het mikken.
+🔁 Iedereen twee beurten, punten optellen voor de teamscore.`,
+    score_type: 'reps',
   },
   {
     number: 6,
-    title: "De 10-Potige Body Rock Rups",
-    description: "Verander als gezin in één reusachtige Body Rock Rups met maar 10 voeten op de grond!\n\n• Bind de voeten van het volledige team aan elkaar vast.\n• Leg als één grote brede rups het aangegeven parcours af zonder los te raken.",
+    title: '🪨 De Body Rock Brug',
+    description: `Eén team. Eén brug. Samen rock solide.
+
+🧱 Ga achter elkaar in hoge plank liggen, allemaal dezelfde kant op, hoofd naar de voeten van de voorganger.
+🦶 Leg je voeten op de schouders van degene achter je.
+🧍 De achterste houdt de voeten op de grond en is het anker.
+⏱️ Houd de brug 30 seconden vast, samen hardop aftellen.
+🧒 Iedereen onder de 1,40 m doet niet mee aan de brug, maar telt af en checkt de heupen — die zakken als eerste.
+🤝 Zakt er één door? Dan zakt de hele brug — en begin je opnieuw.
+📸 Gehaald? Foto, direct de Hall of Fame in.`,
     score_type: 'time',
   },
   {
     number: 7,
-    title: "De Grote Jubileum Push-ups",
-    description: "10 jaar Body Rock betekent spierballen tonen! Scoor zoveel mogelijk herhalingen als team in 2 minuten.\n\n• Iedereen start tegelijkertijd.\n• Tel alle herhalingen bij elkaar op!",
+    title: '🪨 De 10-Jaar High-Five Push-ups',
+    description: `Tien jaar spierballen en doorzettingsvermogen.
+
+🎯 Eén high five = 1 punt.
+👥 Ga in duo's tegenover elkaar liggen, hoofden naar elkaar toe.
+💪 Zak samen naar beneden voor een push-up — vanaf de tenen of vanaf de knieën, jouw tempo.
+🙌 Bovenin geef je elkaar een high five, links en rechts om en om.
+⏱️ Twee minuten lang zoveel mogelijk high fives.
+➕ Tel alle duo-scores op tot één teamscore.`,
     score_type: 'reps',
   },
   {
     number: 8,
-    title: "Bertjes Vertrouwensloop",
-    description: "Bertje test jullie blindelings vertrouwen. Als de avond valt in het Balijbos, moet je elkaar blind kunnen vinden!\n\n• Eén of twee teamleden doen hun ogen dicht (of krijgen een blinddoek).\n• De rest van het team mag de 'blinde' niet aanraken, maar loodst hem/haar met alleen aanwijzingen door een slalom van pionnen.\n• Wissel halverwege om!",
+    title: '🪨 De Blinde Vertrouwensloop',
+    description: `Blindelings op jezelf en de ander vertrouwen.
+
+👥 Maak duo's — één doet de ogen dicht.
+🗣️ De ander loodst puur met stem, zonder aanraken.
+🚶 Wandelen, niet rennen, en alleen over vlak gras.
+🧒 Te spannend voor de jongsten? Hand op de schouder mag.
+🔁 Wissel halverwege om.
+⬆️ Beiden binnen? 10 sprongen samen als finish.`,
     score_type: 'time',
   },
   {
     number: 9,
-    title: "Sabine's Low-Drive Coördinatie",
-    description: "Trainster Sabine houdt van uitdagende bewegingsvormen waarbij je spieren diep moeten gaan. Ze daagt jullie uit voor een coördinatietest op een heel ander niveau!\n\n• Het hele team zakt in de bekende krabhouding (handen en voeten op de grond, buik omhoog richting de hemel).\n• In deze uitdagende positie moeten jullie de bal over een afstand van 10 meter verplaatsen én de bal minimaal 10 keer strak naar elkaar overpassen voordat er gescoord mag worden tussen de doelpionnen.",
+    title: '🪨 Crab Soccer',
+    description: `Core, coördinatie en veel gelach.
+
+🦀 Zak in de krabhouding: handen en voeten op de grond, buik omhoog, billen los van het gras.
+⚽ Verplaats de bal zo 5 meter tussen de pionnen door.
+🔄 Speel de bal minimaal 5 keer met je voeten naar elkaar over.
+🧮 De jongste is teller en keeper: telt de passes hardop mee en verdedigt het doel staand.
+🥅 Pas na 5 passes mag er gescoord worden tussen de doelpionnen.
+🐻 Schouder niet blij? Doe hetzelfde in bearcrawl-houding, buik naar de grond.`,
     score_type: 'time',
   },
   {
     number: 10,
-    title: 'De "10 Jaar Body Rock" Foto-Safari',
-    description: "Leg de bewijsstukken vast voor de Body Rock Hall of Fame! Maak de volgende supertoffe foto's en zorg dat ze leuker zijn dan de foto's van de andere teams (tip: je mag meerdere foto's maken om te testen en stuur de leukste in):\n\n1. Een foto waarbij het team met hun lichamen het getal '10' vormt op het gras.\n2. Een groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet.\n3. Het hele team dat 'zweeft' in de lucht (een perfect getimede sprong-foto!).",
+    title: '🪨 De Body Rock Hall of Fame',
+    description: `Alles gehad. Nu vastleggen.
+
+🤩 Zweeffoto: iedereen tegelijk in de lucht, perfect getimed. Lukt de sprong niet? Gewoon nog een keer — elke poging telt.`,
     score_type: 'time',
   },
 ]
@@ -102,9 +167,7 @@ export default function AdminDashboard() {
     setTab('qr')
     const res = await fetch(`/api/teams?event_id=${event.id}`)
     setTeams(await res.json())
-    const { createClient } = await import('@supabase/supabase-js')
-    const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const { data } = await db.from('challenges').select('*').eq('event_id', event.id).order('number')
+    const { data } = await supabase.from('challenges').select('*').eq('event_id', event.id).order('number')
     setChallenges(data || [])
   }
 
@@ -130,11 +193,8 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error(`Event aanmaken mislukt (HTTP ${res.status}).`)
       const event = await res.json()
 
-      const { createClient } = await import('@supabase/supabase-js')
-      const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
       // Challenges wegschrijven — fout niet opslikken maar opgooien.
-      const { data: insertedChallenges, error: chErr } = await db
+      const { data: insertedChallenges, error: chErr } = await supabase
         .from('challenges')
         .insert(CHALLENGES_2026.map((c, i) => ({ ...c, event_id: event.id, sort_order: i })))
         .select()
@@ -142,25 +202,25 @@ export default function AdminDashboard() {
 
       const challenge10 = insertedChallenges?.find((c: any) => c.number === 10)
       if (challenge10) {
-        const { error: stepErr } = await db.from('challenge_steps').insert([
-          { challenge_id: challenge10.id, step_number: 1, description: "Het team vormt met hun lichamen het getal '10' op het gras", sort_order: 0 },
-          { challenge_id: challenge10.id, step_number: 2, description: 'Groepsfoto waarbij iedereen op een originele manier de spierballen-pose doet', sort_order: 1 },
-          { challenge_id: challenge10.id, step_number: 3, description: 'Het hele team zweeft in de lucht (een perfect getimede sprong-foto!)', sort_order: 2 },
+        const { error: stepErr } = await supabase.from('challenge_steps').insert([
+          { challenge_id: challenge10.id, step_number: 1, description: "🔟 Maak met jullie lichamen het getal '10' op het gras.", sort_order: 0 },
+          { challenge_id: challenge10.id, step_number: 2, description: '💪🏼 Groepsfoto waarbij iedereen de spierballen-pose doet.', sort_order: 1 },
+          { challenge_id: challenge10.id, step_number: 3, description: '❓ Balijhoeve special: maak een selfie met iets dat out of place is op de boerderij.', sort_order: 2 },
         ])
         if (stepErr) throw new Error(`Sub-opdrachten toevoegen mislukt: ${stepErr.message}`)
       }
 
       // Verifieer uit de DB (niet uit de array in het geheugen): tel terug wat er echt staat.
-      const { count: chCount, error: cntErr } = await db
+      const { count: chCount, error: cntErr } = await supabase
         .from('challenges').select('id', { count: 'exact', head: true }).eq('event_id', event.id)
       if (cntErr) throw new Error(`Verificatie van challenges mislukt: ${cntErr.message}`)
-      const { count: stepCount } = await db
+      const { count: stepCount } = await supabase
         .from('challenge_steps').select('id, challenges!inner(event_id)', { count: 'exact', head: true })
         .eq('challenges.event_id', event.id)
 
       if (chCount !== CHALLENGES_2026.length || stepCount !== 3) {
         // Beter geen event dan een leeg event: zet 'm meteen inactief.
-        await db.from('events').update({ is_active: false }).eq('id', event.id)
+        await supabase.from('events').update({ is_active: false }).eq('id', event.id)
         throw new Error(
           `Verificatie faalde: ${chCount} challenges + ${stepCount} sub-opdrachten in de DB, ` +
           `verwacht ${CHALLENGES_2026.length} + 3. Het event is op INACTIEF gezet — niet gebruiken. ` +
