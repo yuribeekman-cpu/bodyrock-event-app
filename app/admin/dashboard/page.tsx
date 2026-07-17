@@ -146,7 +146,7 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<'events' | 'qr' | 'teams' | 'scores'>('events')
   const [loading, setLoading] = useState(false)
   const [showNewForm, setShowNewForm] = useState(false)
-  const [newEvent, setNewEvent] = useState({ name: 'Body Rock Familie Fun', edition: 'Zomer 2026 — Groep B', date: '', location: 'De Balijhoeve, Zoetermeer' })
+  const [newEvent, setNewEvent] = useState({ name: 'Body Rock Familie Fun', edition: 'Zomer 2026', date: '', location: 'De Balijhoeve, Zoetermeer' })
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   useEffect(() => { loadEvents() }, [])
