@@ -62,14 +62,14 @@ const META_MARGIN_TOP = 18        // held → meta (ongewijzigd)
 const FOOTER_SUB_GAP = 10         // voetregel hoofd → sub (ongewijzigd)
 const TOPROW_TOP = 281            // logo/chip-rij bovenkant (was 290, 9px hoger)
 const LOGO_H = 72                 // logo-hoogte (ongewijzigd)
-const TOPROW_MARGIN_X = 40        // logo/chip zijmarge — NIET in de correctietabel, blijft 40
+const TOPROW_MARGIN_X = 43        // logo/chip zijmarge — gelijk aan kaart-zijmarge (uitgelijnd)
 
 // Font-groottes (§4, gecorrigeerd)
 const HELD_MAX = 151              // held auto-fit startgrootte (was 132)
 const LABEL_FONT = 36             // (was 30)
 const META_FONT = 40             // (was 30)
-const FOOTER_MAIN_MAX = 40        // (was 32)
-const FOOTER_SUB_FONT = 36        // (was 30)
+const FOOTER_MAIN_MAX = 48        // groter zodat de tekst de balk beter vult (was 40)
+const FOOTER_SUB_FONT = 40        // groter, vult de balk beter (was 36)
 const CHIP_FONT = 40             // (was 30)
 const CHIP_PAD_X = 36             // chip padding horizontaal (was 22)
 const CHIP_PAD_Y = 14             // chip padding verticaal (was 8)
@@ -217,16 +217,25 @@ function fitLabel(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return { size: s, lines, lh: s * 1.15 }
 }
 
-// Voetregel hoofd (§8) — auto-fit tegen afkappen: 40 → 38 → 35, dan wrap 2 regels.
-// Ladder = de oude 32/30/28 × 1,25 (nieuwe primaire grootte 40).
+// Voetregel hoofd (§8) — auto-fit: pak de grootste maat die op één regel past
+// (48 → 44 → 40 → 36), dan pas wrap naar 2 regels. Vult de balk zo vol mogelijk.
 function fitFooterMain(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  for (const s of [FOOTER_MAIN_MAX, 38, 35]) {
+  for (const s of [FOOTER_MAIN_MAX, 44, 40, 36]) {
     ctx.font = SANS(s)
     if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 1.15 }
   }
-  const s = 35
+  const s = 36
   ctx.font = SANS(s)
   return { size: s, lines: wrapText(ctx, text, maxWidth, 2), lh: s * 1.15 }
+}
+
+// Voetregel-sub (§8): geen wrap; krimp de font tot 'ie binnen de balkbreedte past
+// (min 28). footerH rekent met FOOTER_SUB_FONT (max), dus de balk blijft hoog genoeg.
+function fitSubFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): number {
+  let s = FOOTER_SUB_FONT
+  ctx.font = SANS(s)
+  while (s > 28 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
+  return s
 }
 
 // ── Publieke render ─────────────────────────────────────────────────────
@@ -446,7 +455,7 @@ function drawFooterText(
   if (c.footerSub) {
     fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(FOOTER_SUB_FONT)
+    ctx.font = SANS(fitSubFont(ctx, c.footerSub, cardW - FOOTER_PAD_X * 2))
     ctx.fillText(c.footerSub, cx, fyy)
   }
   void footerH
@@ -502,7 +511,7 @@ function drawNoPhotoBody(
   if (c.footerSub) {
     fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(FOOTER_SUB_FONT)
+    ctx.font = SANS(fitSubFont(ctx, c.footerSub, CARD_W - FOOTER_PAD_X * 2))
     ctx.fillText(c.footerSub, cx, fyy)
   }
 }
