@@ -24,7 +24,7 @@ export type OverlayOpts = {
 // body-rock.nl is niet-onderhandelbaar: deze foto's zijn permanent en dit is het
 // enige adres waarvan we zeker weten dat het over jaren nog bestaat. Nooit een
 // .vercel.app-URL of een subdomein dat kan verhuizen.
-const FOOTER_MAIN = 'Vanaf 20-07: Body Rock Bingo 💪🏼'
+const FOOTER_MAIN = 'Body Rock Bingo vanaf 20-07'
 const FOOTER_SUB = 'Leuke prijzen te winnen 🤩 · body-rock.nl'
 
 export async function generateOverlay(file: File, opts: OverlayOpts): Promise<Blob | null> {
