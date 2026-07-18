@@ -430,8 +430,8 @@ export default function TeamPage() {
 
       {/* Challenge modal */}
       {activeChallenge && (
-        <div className="fixed inset-0 flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--br-offwhite)' }}>
+        <div className="fixed inset-0 h-[100dvh] flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full rounded-t-3xl p-6 max-h-[90dvh] overflow-y-auto" style={{ background: 'var(--br-offwhite)', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="text-sm font-semibold mb-1" style={{ color: 'var(--br-red)' }}>Challenge {activeChallenge.number}</div>
@@ -534,8 +534,8 @@ export default function TeamPage() {
 
       {/* Sub-opdracht modal */}
       {activeStep && (
-        <div className="fixed inset-0 flex items-end z-[60]" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full rounded-t-3xl p-6" style={{ background: 'var(--br-offwhite)' }}>
+        <div className="fixed inset-0 h-[100dvh] flex items-end z-[60]" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full rounded-t-3xl p-6 max-h-[90dvh] overflow-y-auto" style={{ background: 'var(--br-offwhite)', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-bold">Opdracht {activeStep.step_number}</h2>
               <button onClick={closeModal} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
@@ -572,8 +572,8 @@ export default function TeamPage() {
 
       {/* Fun foto modal */}
       {funModalOpen && (
-        <div className="fixed inset-0 flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--br-offwhite)' }}>
+        <div className="fixed inset-0 h-[100dvh] flex items-end z-50" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full rounded-t-3xl p-6 max-h-[90dvh] overflow-y-auto" style={{ background: 'var(--br-offwhite)', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-bold">Fun foto&apos;s toevoegen 💪🏼</h2>
               <button onClick={() => { closeModal(); setFunPhotoFiles([]); setFunPhotoPreviews([]); setFunError('') }} className="text-2xl leading-none" style={{ color: 'var(--br-muted)' }}>×</button>
