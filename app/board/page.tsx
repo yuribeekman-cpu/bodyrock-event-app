@@ -139,7 +139,7 @@ export default function BoardPage() {
           <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{color: 'var(--br-muted)'}}>Live foto&apos;s</h2>
           <div className="grid grid-cols-2 gap-3">
             {photos.map(p => (
-              <div key={p.id} className="rounded-xl overflow-hidden relative" style={{aspectRatio: '4/5'}}>
+              <div key={p.id} className="rounded-xl overflow-hidden relative" style={{aspectRatio: '9/16'}}>
                 <img src={p.photo_url} alt={p.label} className="w-full h-full object-cover" />
                 <div className="absolute bottom-0 left-0 right-0 p-2" style={{background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)'}}>
                   <div className="text-white text-xs font-semibold truncate">{p.team_name}</div>

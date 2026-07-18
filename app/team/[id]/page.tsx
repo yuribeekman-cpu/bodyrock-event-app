@@ -382,7 +382,7 @@ export default function TeamPage() {
         {funPhotos.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {funPhotos.map(p => (
-              <div key={p.id} className="rounded-lg overflow-hidden" style={{ aspectRatio: '4/5' }}>
+              <div key={p.id} className="rounded-lg overflow-hidden" style={{ aspectRatio: '9/16' }}>
                 <img src={p.photo_url} alt="Fun foto" className="w-full h-full object-cover" />
               </div>
             ))}
@@ -505,7 +505,7 @@ export default function TeamPage() {
               <div>
                 <label className="text-sm mb-2 block" style={{ color: 'var(--br-muted)' }}>Foto 📷 (verplicht, stopt de timer)</label>
                 {photoPreview ? (
-                  <div className="relative" style={{ aspectRatio: '4/5' }}>
+                  <div className="relative" style={{ aspectRatio: '9/16' }}>
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
                     <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null); setOverlayBlob(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
                   </div>
@@ -544,7 +544,7 @@ export default function TeamPage() {
 
             <form onSubmit={handleStepSubmit} className="flex flex-col gap-4">
               {stepPhotoPreview ? (
-                <div className="relative" style={{ aspectRatio: '4/5' }}>
+                <div className="relative" style={{ aspectRatio: '9/16' }}>
                   <img src={stepPhotoPreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
                   <button type="button" onClick={() => { setStepPhoto(null); setStepPhotoPreview(null) }} className="absolute top-2 right-2 rounded-full w-7 h-7 flex items-center justify-center text-sm" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
                 </div>
@@ -584,7 +584,7 @@ export default function TeamPage() {
               {funPhotoPreviews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {funPhotoPreviews.map((src, i) => (
-                    <div key={i} className="relative" style={{ aspectRatio: '4/5' }}>
+                    <div key={i} className="relative" style={{ aspectRatio: '9/16' }}>
                       <img src={src} alt="Preview" className="w-full h-full object-cover rounded-xl" />
                       <button type="button" onClick={() => removeFunPhoto(i)} className="absolute top-1 right-1 rounded-full w-6 h-6 flex items-center justify-center text-xs" style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>×</button>
                     </div>
