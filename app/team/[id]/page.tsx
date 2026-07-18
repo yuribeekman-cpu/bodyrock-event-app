@@ -503,7 +503,7 @@ export default function TeamPage() {
               )}
 
               <div>
-                <label className="text-sm mb-2 block" style={{ color: 'var(--br-muted)' }}>Foto 📷 (verplicht, stopt de timer)</label>
+                <label className="text-sm mb-2 block" style={{ color: 'var(--br-muted)' }}>Foto 📷 (verplicht)</label>
                 {photoPreview ? (
                   <div className="relative" style={{ aspectRatio: '9/16' }}>
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />

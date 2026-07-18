@@ -41,6 +41,41 @@ const SANS = (s: number) => `500 ${s}px 'Barlow', system-ui, -apple-system, Aria
 const LOGO_SRC = '/logowit.png' // C1: wit transparant woordmerk. NIET logowit1.png (kapot).
 const LOGO_TIMEOUT_MS = 2000
 
+// ── Layout-tokens (§4, gecorrigeerd door FIX-Overlay-Tokens-v1; px op 1080-basis) ──
+// Mockup-waarde × 3,6. Waar dit afwijkt van SPEC §4 wint deze tabel: §4 was bij het
+// opschalen van de 300px-mockup te krap afgerond (letters te klein, blok te compact,
+// logo te laag, voetregel knijpt). Alle afhankelijke posities worden hieruit afgeleid.
+const CARD_MARGIN_X = 43          // kaart zijmarge (was 40)
+const CARD_MARGIN_BOTTOM = 43     // kaart ondermarge (was 40)
+const CARD_W = W - CARD_MARGIN_X * 2   // 994 (was 1000)
+const CARD_RADIUS = 58            // (was 28)
+const CARD_PAD_TOP = 48           // body-padding boven (was 40)
+const CARD_PAD_SIDE = 50          // body-padding zij (was 40)
+const CARD_PAD_BOTTOM = 43        // ruimte body → voetregel (was 30)
+const FOOTER_PAD_Y = 25           // voetregel verticaal (ontbrak in §4; was 30)
+const FOOTER_PAD_X = 43           // voetregel horizontaal (was 44)
+const KEYLINE_W = 101             // rode keyline breedte (was 96)
+const KEYLINE_H = 11              // rode keyline hoogte (was 8)
+const KEYLINE_MARGIN_BOTTOM = 32  // keyline → label (was 22)
+const LABEL_MARGIN_BOTTOM = 14    // label → held (ongewijzigd)
+const META_MARGIN_TOP = 18        // held → meta (ongewijzigd)
+const FOOTER_SUB_GAP = 10         // voetregel hoofd → sub (ongewijzigd)
+const TOPROW_TOP = 281            // logo/chip-rij bovenkant (was 290, 9px hoger)
+const LOGO_H = 72                 // logo-hoogte (ongewijzigd)
+const TOPROW_MARGIN_X = 40        // logo/chip zijmarge — NIET in de correctietabel, blijft 40
+
+// Font-groottes (§4, gecorrigeerd)
+const HELD_MAX = 151              // held auto-fit startgrootte (was 132)
+const LABEL_FONT = 36             // (was 30)
+const META_FONT = 40             // (was 30)
+const FOOTER_MAIN_MAX = 40        // (was 32)
+const FOOTER_SUB_FONT = 36        // (was 30)
+const CHIP_FONT = 40             // (was 30)
+const CHIP_PAD_X = 36             // chip padding horizontaal (was 22)
+const CHIP_PAD_Y = 14             // chip padding verticaal (was 8)
+const CHIP_RADIUS = 18            // (was 12)
+const LABEL_TRACKING = '0.09em'   // §4 letter-spacing op label, feature-detected (compat)
+
 // ── §9 anti-silent-fallback: leeg of een bekende placeholder → slot valt weg.
 // Zo lekt "Aanvoerder Test" (testdata) nooit meer de kaart op.
 const PLACEHOLDERS = new Set(['test', 'placeholder', 'naam', 'n/a', 'n.v.t.', '-', '—'])
@@ -54,6 +89,17 @@ function cleanSlot(v?: string): string | undefined {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n))
+}
+
+// §4 letter-spacing op het label. ctx.letterSpacing wordt niet overal ondersteund
+// (oudere iOS/Safari); feature-detected + try/catch, nooit een blocker. Na gebruik
+// terug op '0px' zodat het niet lekt naar held/meta/voetregel. Waar het ontbreekt
+// valt het stil weg — het label rendert dan zonder tracking (geen hack, geen crash).
+function setLabelTracking(ctx: CanvasRenderingContext2D, on: boolean) {
+  if (!('letterSpacing' in ctx)) return
+  try {
+    ;(ctx as unknown as { letterSpacing: string }).letterSpacing = on ? LABEL_TRACKING : '0px'
+  } catch { /* niet ondersteund → stil laten vallen */ }
 }
 
 // ── Laders ────────────────────────────────────────────────────────────
@@ -141,10 +187,10 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
 
 type Fit = { size: number; lines: string[]; lh: number }
 
-// Held (§8): start 132, stap 8 terug tot 76 op één regel; past het dan nog niet →
+// Held (§8): start 151, stap 8 terug tot 76 op één regel; past het dan nog niet →
 // max 2 regels (line-height 0.90), zo nodig font verder terug tot alles binnen valt.
 function fitHeld(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  for (let s = 132; s >= 76; s -= 8) {
+  for (let s = HELD_MAX; s >= 76; s -= 8) {
     ctx.font = COND(s)
     if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 0.92 }
   }
@@ -159,21 +205,26 @@ function fitHeld(ctx: CanvasRenderingContext2D, text: string, maxWidth: number):
   return { size: 48, lines: wrapText(ctx, text, maxWidth, 2), lh: 48 * 0.90 }
 }
 
-// Label (§8): max 1 regel. Font terug tot 24, dan ellipsis. Uppercase.
+// Label (§8): max 1 regel. Font terug tot 24, dan ellipsis. Uppercase + tracking.
+// Meet mét tracking aan zodat de auto-fit klopt met wat drawCardBody straks tekent.
 function fitLabel(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  let s = 30
+  setLabelTracking(ctx, true)
+  let s = LABEL_FONT
   ctx.font = SANS(s)
   while (s > 24 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
-  return { size: s, lines: wrapText(ctx, text, maxWidth, 1), lh: s * 1.15 }
+  const lines = wrapText(ctx, text, maxWidth, 1)
+  setLabelTracking(ctx, false)
+  return { size: s, lines, lh: s * 1.15 }
 }
 
-// Voetregel hoofd (§8) — DIT is de bug die de footer nu afkapt: 32 → 28 → wrap 2 regels.
+// Voetregel hoofd (§8) — auto-fit tegen afkappen: 40 → 38 → 35, dan wrap 2 regels.
+// Ladder = de oude 32/30/28 × 1,25 (nieuwe primaire grootte 40).
 function fitFooterMain(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  for (const s of [32, 30, 28]) {
+  for (const s of [FOOTER_MAIN_MAX, 38, 35]) {
     ctx.font = SANS(s)
     if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 1.15 }
   }
-  const s = 28
+  const s = 35
   ctx.font = SANS(s)
   return { size: s, lines: wrapText(ctx, text, maxWidth, 2), lh: s * 1.15 }
 }
@@ -211,28 +262,28 @@ export async function renderOverlayCard(file: File | null, slots: OverlaySlots):
     // ── Laag 2: foto full-bleed, object-fit cover, object-position 50% <Y>% ──
     if (photo) drawCover(ctx, photo, 0, 0, W, H, 0.5, fy)
 
-    // ── Laag 3: logo linksboven + chip rechtsboven (toprow top 290) ──
+    // ── Laag 3: logo linksboven + chip rechtsboven (toprow top 281) ──
     drawTopRow(ctx, logo, chip)
 
     // ── Laag 4: de crème kaart (of, zonder foto, tekst direct op rood) ──
-    const cardInner = W - 80 - 80 // kaartbreedte 1000 − padding 2×40
+    const cardInner = CARD_W - CARD_PAD_SIDE * 2 // tekstbreedte binnen de kaart
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
 
     const heldFit = fitHeld(ctx, held, cardInner)
     const labelFit = label ? fitLabel(ctx, label, cardInner) : null
-    const footerMaxW = 1000 - 88 // kaartbreedte − 2×44 zijmarge in de voetregel
+    const footerMaxW = CARD_W - FOOTER_PAD_X * 2 // kaartbreedte − voetregel-zijmarge
     const footerFit = fitFooterMain(ctx, footerMain, footerMaxW)
 
     // Body-hoogte (relatief, onafhankelijk van kaartpositie)
     const heldBlock = (heldFit.lines.length - 1) * heldFit.lh + heldFit.size
-    const labelBlock = labelFit ? 8 + 22 + labelFit.size + 14 : 0 // keyline + gaps + label
-    const metaBlock = meta ? 18 + 30 : 0
-    const bodyH = 40 + labelBlock + heldBlock + metaBlock + 30
+    const labelBlock = labelFit ? KEYLINE_H + KEYLINE_MARGIN_BOTTOM + labelFit.size + LABEL_MARGIN_BOTTOM : 0 // keyline + gaps + label
+    const metaBlock = meta ? META_MARGIN_TOP + META_FONT : 0
+    const bodyH = CARD_PAD_TOP + labelBlock + heldBlock + metaBlock + CARD_PAD_BOTTOM
 
     // Voetregel-hoogte
     const footerMainBlock = (footerFit.lines.length - 1) * footerFit.lh + footerFit.size
-    const footerH = 30 + footerMainBlock + (footerSub ? 10 + 30 : 0) + 30
+    const footerH = FOOTER_PAD_Y + footerMainBlock + (footerSub ? FOOTER_SUB_GAP + FOOTER_SUB_FONT : 0) + FOOTER_PAD_Y
 
     if (photo) {
       drawCard(ctx, photo, fy, bodyH, footerH, {
@@ -254,35 +305,35 @@ export async function renderOverlayCard(file: File | null, slots: OverlaySlots):
 
 // Logo (wit + drop-shadow) links, chip (wit op rood) rechts. Chip leeg → alleen logo.
 function drawTopRow(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null, chip?: string) {
-  const top = 290
-  const logoH = 72
+  const top = TOPROW_TOP
+  const logoH = LOGO_H
   ctx.save()
   ctx.shadowColor = 'rgba(0,0,0,0.55)'
   ctx.shadowBlur = 8
   ctx.shadowOffsetY = 3
   if (logo) {
     const logoW = logo.width * (logoH / logo.height)
-    ctx.drawImage(logo, 40, top, logoW, logoH)
+    ctx.drawImage(logo, TOPROW_MARGIN_X, top, logoW, logoH)
   } else {
     // Terugval-wordmark als het bestand ontbreekt/traag is — nooit een blocker.
     ctx.fillStyle = '#FFFFFF'
     ctx.font = COND(64)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillText('BODY ROCK', 40, top + 4)
+    ctx.fillText('BODY ROCK', TOPROW_MARGIN_X, top + 4)
   }
   ctx.restore()
 
   if (chip) {
-    ctx.font = SANS(30)
+    ctx.font = SANS(CHIP_FONT)
     const tw = ctx.measureText(chip).width
-    const padX = 22
+    const padX = CHIP_PAD_X
     const chipW = tw + padX * 2
-    const chipH = 46
-    const x = W - 40 - chipW
+    const chipH = CHIP_FONT + CHIP_PAD_Y * 2
+    const x = W - TOPROW_MARGIN_X - chipW
     const y = top + logoH / 2 - chipH / 2
     ctx.fillStyle = RED
-    roundRectPath(ctx, x, y, chipW, chipH, { tl: 12, tr: 12, br: 12, bl: 12 })
+    roundRectPath(ctx, x, y, chipW, chipH, { tl: CHIP_RADIUS, tr: CHIP_RADIUS, br: CHIP_RADIUS, bl: CHIP_RADIUS })
     ctx.fill()
     ctx.fillStyle = '#FFFFFF'
     ctx.textAlign = 'left'
@@ -304,11 +355,11 @@ function drawCard(
   ctx: CanvasRenderingContext2D, photo: HTMLImageElement, fy: number,
   bodyH: number, footerH: number, c: CardContent,
 ) {
-  const cardX = 40
-  const cardW = 1000
+  const cardX = CARD_MARGIN_X
+  const cardW = CARD_W
   const cardH = bodyH + footerH
-  const cardY = H - 40 - cardH
-  const radius = { tl: 28, tr: 28, br: 28, bl: 28 }
+  const cardY = H - CARD_MARGIN_BOTTOM - cardH
+  const radius = { tl: CARD_RADIUS, tr: CARD_RADIUS, br: CARD_RADIUS, bl: CARD_RADIUS }
 
   const supportsBlur = typeof ctx.filter === 'string'
 
@@ -334,7 +385,7 @@ function drawCard(
   ctx.fillStyle = RED
   ctx.fillRect(cardX, footerY, cardW, footerH)
 
-  drawCardBody(ctx, cardX + 40, cardY + 40, cardW - 80, c)
+  drawCardBody(ctx, cardX + CARD_PAD_SIDE, cardY + CARD_PAD_TOP, cardW - CARD_PAD_SIDE * 2, c)
   drawFooterText(ctx, cardX, footerY, cardW, footerH, c)
 
   ctx.restore()
@@ -349,14 +400,16 @@ function drawCardBody(
   let cy = y
 
   if (c.labelFit) {
-    // Rode keyline 96×8
+    // Rode keyline 101×11
     ctx.fillStyle = RED
-    ctx.fillRect(x, cy, 96, 8)
-    cy += 8 + 22
+    ctx.fillRect(x, cy, KEYLINE_W, KEYLINE_H)
+    cy += KEYLINE_H + KEYLINE_MARGIN_BOTTOM
     ctx.fillStyle = RED
     ctx.font = SANS(c.labelFit.size)
+    setLabelTracking(ctx, true)
     ctx.fillText(c.labelFit.lines[0] ?? '', x, cy)
-    cy += c.labelFit.size + 14
+    setLabelTracking(ctx, false)
+    cy += c.labelFit.size + LABEL_MARGIN_BOTTOM
   }
 
   ctx.fillStyle = INK
@@ -367,9 +420,9 @@ function drawCardBody(
   cy += (c.heldFit.lines.length - 1) * c.heldFit.lh + c.heldFit.size
 
   if (c.meta) {
-    cy += 18
+    cy += META_MARGIN_TOP
     ctx.fillStyle = INK_SOFT
-    ctx.font = SANS(30)
+    ctx.font = SANS(META_FONT)
     ctx.fillText(c.meta, x, cy)
   }
   void innerW
@@ -381,7 +434,7 @@ function drawFooterText(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   const cx = cardX + cardW / 2
-  let fyy = footerY + 30
+  let fyy = footerY + FOOTER_PAD_Y
 
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
@@ -391,9 +444,9 @@ function drawFooterText(
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
 
   if (c.footerSub) {
-    fyy += 10
+    fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(30)
+    ctx.font = SANS(FOOTER_SUB_FONT)
     ctx.fillText(c.footerSub, cx, fyy)
   }
   void footerH
@@ -404,20 +457,22 @@ function drawNoPhotoBody(
   ctx: CanvasRenderingContext2D, bodyH: number, footerH: number, c: CardContent,
 ) {
   const blockH = bodyH + footerH
-  const top = H - 40 - blockH
-  const x = 40
+  const top = H - CARD_MARGIN_BOTTOM - blockH
+  const x = CARD_MARGIN_X
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  let cy = top + 40
+  let cy = top + CARD_PAD_TOP
 
   if (c.labelFit) {
     ctx.fillStyle = `rgba(${CREME}, 1)`
-    ctx.fillRect(x, cy, 96, 8)
-    cy += 8 + 22
+    ctx.fillRect(x, cy, KEYLINE_W, KEYLINE_H)
+    cy += KEYLINE_H + KEYLINE_MARGIN_BOTTOM
     ctx.font = SANS(c.labelFit.size)
     ctx.fillStyle = `rgba(${CREME}, 1)`
+    setLabelTracking(ctx, true)
     ctx.fillText(c.labelFit.lines[0] ?? '', x, cy)
-    cy += c.labelFit.size + 14
+    setLabelTracking(ctx, false)
+    cy += c.labelFit.size + LABEL_MARGIN_BOTTOM
   }
 
   ctx.fillStyle = '#FFFFFF'
@@ -428,16 +483,16 @@ function drawNoPhotoBody(
   cy += (c.heldFit.lines.length - 1) * c.heldFit.lh + c.heldFit.size
 
   if (c.meta) {
-    cy += 18
+    cy += META_MARGIN_TOP
     ctx.fillStyle = 'rgba(255,255,255,0.85)'
-    ctx.font = SANS(30)
+    ctx.font = SANS(META_FONT)
     ctx.fillText(c.meta, x, cy)
   }
 
   // Voetregel-sub (body-rock.nl) onderin, gecentreerd.
   ctx.textAlign = 'center'
   const cx = W / 2
-  let fyy = H - 40 - footerH + 30
+  let fyy = H - CARD_MARGIN_BOTTOM - footerH + FOOTER_PAD_Y
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
     ctx.font = SANS(c.footerFit.size)
@@ -445,9 +500,9 @@ function drawNoPhotoBody(
   })
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
   if (c.footerSub) {
-    fyy += 10
+    fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(30)
+    ctx.font = SANS(FOOTER_SUB_FONT)
     ctx.fillText(c.footerSub, cx, fyy)
   }
 }
