@@ -33,10 +33,17 @@ const INK = '#1A1A1A'
 const INK_SOFT = '#4A4A47'
 const LETTERBOX = '#333333'
 
-// De app laadt Barlow niet als webfont; canvas valt terug op de system-stack.
-// De auto-fit (§8) vangt de bredere fallback-metriek op — niks loopt buiten beeld.
+// De app linkt Barlow + Barlow Condensed als webfont (Google Fonts, app/layout.tsx:
+// Barlow 400;500;600, Barlow Condensed 600;700). ensureFonts() wacht (bounded) tot ze
+// geladen zijn vóór het tekenen, zodat de canvas de ECHTE condensed Barlow gebruikt i.p.v.
+// de brede Arial-fallback — die maakte de held "stretched". Weights = exact wat gelinkt is:
+// Barlow Condensed 700 voor de held, Barlow 500/600 voor de rest. 'Arial Narrow'/Arial
+// blijven als vangnet als de webfont (offline/CSP) niet laadt; auto-fit (§8) vangt de
+// bredere fallback-metriek op zodat niks buiten beeld loopt.
 const COND = (s: number) => `700 ${s}px 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif`
 const SANS = (s: number) => `500 ${s}px 'Barlow', system-ui, -apple-system, Arial, sans-serif`
+// Semibold voor label + voetregel-hoofd (mockup Barlow 600).
+const SANS_SEMI = (s: number) => `600 ${s}px 'Barlow', system-ui, -apple-system, Arial, sans-serif`
 
 const LOGO_SRC = '/logowit.png' // C1: wit transparant woordmerk. NIET logowit1.png (kapot).
 const LOGO_TIMEOUT_MS = 2000
@@ -48,33 +55,33 @@ const LOGO_TIMEOUT_MS = 2000
 const CARD_MARGIN_X = 43          // kaart zijmarge (was 40)
 const CARD_MARGIN_BOTTOM = 43     // kaart ondermarge (was 40)
 const CARD_W = W - CARD_MARGIN_X * 2   // 994 (was 1000)
-const CARD_RADIUS = 58            // (was 28)
-const CARD_PAD_TOP = 48           // body-padding boven (was 40)
-const CARD_PAD_SIDE = 50          // body-padding zij (was 40)
-const CARD_PAD_BOTTOM = 43        // ruimte body → voetregel (was 30)
-const FOOTER_PAD_Y = 25           // voetregel verticaal (ontbrak in §4; was 30)
-const FOOTER_PAD_X = 43           // voetregel horizontaal (was 44)
-const KEYLINE_W = 101             // rode keyline breedte (was 96)
-const KEYLINE_H = 11              // rode keyline hoogte (was 8)
-const KEYLINE_MARGIN_BOTTOM = 32  // keyline → label (was 22)
-const LABEL_MARGIN_BOTTOM = 14    // label → held (ongewijzigd)
-const META_MARGIN_TOP = 18        // held → meta (ongewijzigd)
-const FOOTER_SUB_GAP = 10         // voetregel hoofd → sub (ongewijzigd)
-const TOPROW_TOP = 281            // logo/chip-rij bovenkant (was 290, 9px hoger)
-const LOGO_H = 72                 // logo-hoogte (ongewijzigd)
-const TOPROW_MARGIN_X = 43        // logo/chip zijmarge — gelijk aan kaart-zijmarge (uitgelijnd)
+const CARD_RADIUS = 36            // .card 10px × 3,6 (memo had per abuis .frame 16px=58)
+const CARD_PAD_TOP = 47           // body-padding boven, 13px × 3,6
+const CARD_PAD_SIDE = 50          // body-padding zij, 14px × 3,6
+const CARD_PAD_BOTTOM = 43        // ruimte body → voetregel, 12px × 3,6
+const FOOTER_PAD_Y = 25           // voetregel verticaal, 7px × 3,6
+const FOOTER_PAD_X = 43           // voetregel horizontaal, 12px × 3,6
+const KEYLINE_W = 101             // rode keyline breedte, 28px × 3,6
+const KEYLINE_H = 11              // rode keyline hoogte, 3px × 3,6
+const KEYLINE_MARGIN_BOTTOM = 32  // keyline → label, 9px × 3,6
+const LABEL_MARGIN_BOTTOM = 14    // label → held, 4px × 3,6
+const META_MARGIN_TOP = 18        // held → meta, 5px × 3,6
+const FOOTER_SUB_GAP = 7          // voetregel hoofd → sub, 2px × 3,6
+const TOPROW_TOP = 281            // logo/chip-rij bovenkant, 78px × 3,6
+const LOGO_H = 72                 // logo-hoogte, 20px × 3,6
+const TOPROW_MARGIN_X = 43        // logo/chip zijmarge, 12px × 3,6 (= kaart-zijmarge)
 
-// Font-groottes (§4, gecorrigeerd)
-const HELD_MAX = 151              // held auto-fit startgrootte (was 132)
-const LABEL_FONT = 36             // (was 30)
-const META_FONT = 40             // (was 30)
-const FOOTER_MAIN_MAX = 48        // groter zodat de tekst de balk beter vult (was 40)
-const FOOTER_SUB_FONT = 40        // groter, vult de balk beter (was 36)
-const CHIP_FONT = 40             // (was 30)
-const CHIP_PAD_X = 36             // chip padding horizontaal (was 22)
-const CHIP_PAD_Y = 14             // chip padding verticaal (was 8)
-const CHIP_RADIUS = 18            // (was 12)
-const LABEL_TRACKING = '0.09em'   // §4 letter-spacing op label, feature-detected (compat)
+// Font-groottes (mockup × 3,6). Held/label Barlow Condensed 700 resp. Barlow 600.
+const HELD_MAX = 151              // held auto-fit start, 42px × 3,6
+const LABEL_FONT = 36             // label, 10px × 3,6 (weight 600)
+const META_FONT = 40             // meta, 11px × 3,6 (weight 500)
+const FOOTER_MAIN_MAX = 40        // voetregel hoofd, 11px × 3,6 (weight 600)
+const FOOTER_SUB_FONT = 36        // voetregel sub, 10px × 3,6 (weight 500)
+const CHIP_FONT = 40             // chip, 11px × 3,6 (weight 500)
+const CHIP_PAD_X = 36             // chip padding horizontaal, 10px × 3,6
+const CHIP_PAD_Y = 14             // chip padding verticaal, 4px × 3,6
+const CHIP_RADIUS = 18            // chip radius, 5px × 3,6
+const LABEL_TRACKING = '0.08em'   // label letter-spacing (mockup .08em), feature-detected
 
 // ── §9 anti-silent-fallback: leeg of een bekende placeholder → slot valt weg.
 // Zo lekt "Aanvoerder Test" (testdata) nooit meer de kaart op.
@@ -91,15 +98,30 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n))
 }
 
-// §4 letter-spacing op het label. ctx.letterSpacing wordt niet overal ondersteund
-// (oudere iOS/Safari); feature-detected + try/catch, nooit een blocker. Na gebruik
-// terug op '0px' zodat het niet lekt naar held/meta/voetregel. Waar het ontbreekt
-// valt het stil weg — het label rendert dan zonder tracking (geen hack, geen crash).
-function setLabelTracking(ctx: CanvasRenderingContext2D, on: boolean) {
+// letter-spacing (label + held). ctx.letterSpacing wordt niet overal ondersteund
+// (oudere iOS/Safari); feature-detected + try/catch, nooit een blocker. Zet na gebruik
+// terug op '0px' zodat het niet lekt naar andere slots. Waar het ontbreekt valt het
+// stil weg — de tekst rendert dan zonder tracking (geen hack, geen crash).
+function setTracking(ctx: CanvasRenderingContext2D, value: string | null) {
   if (!('letterSpacing' in ctx)) return
   try {
-    ;(ctx as unknown as { letterSpacing: string }).letterSpacing = on ? LABEL_TRACKING : '0px'
+    ;(ctx as unknown as { letterSpacing: string }).letterSpacing = value ?? '0px'
   } catch { /* niet ondersteund → stil laten vallen */ }
+}
+
+// Wacht (bounded) tot de gelinkte Barlow-faces geladen zijn, zodat de canvas de echte
+// (condensed) Barlow gebruikt i.p.v. de Arial-fallback. Best-effort: bij timeout of geen
+// FontFace-API tekenen we gewoon door — auto-fit + fallback-stack vangen het op (faalpad).
+async function ensureFonts(): Promise<void> {
+  try {
+    const fonts = (document as unknown as { fonts?: FontFaceSet }).fonts
+    if (!fonts || typeof fonts.load !== 'function') return
+    const faces = [`700 100px 'Barlow Condensed'`, `600 100px 'Barlow'`, `500 100px 'Barlow'`]
+    await Promise.race([
+      Promise.all(faces.map((f) => fonts.load(f))),
+      new Promise<void>((resolve) => setTimeout(resolve, 800)),
+    ])
+  } catch { /* geen webfont → auto-fit + fallback vangen het op */ }
 }
 
 // ── Laders ────────────────────────────────────────────────────────────
@@ -208,33 +230,33 @@ function fitHeld(ctx: CanvasRenderingContext2D, text: string, maxWidth: number):
 // Label (§8): max 1 regel. Font terug tot 24, dan ellipsis. Uppercase + tracking.
 // Meet mét tracking aan zodat de auto-fit klopt met wat drawCardBody straks tekent.
 function fitLabel(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  setLabelTracking(ctx, true)
+  setTracking(ctx, LABEL_TRACKING)
   let s = LABEL_FONT
-  ctx.font = SANS(s)
-  while (s > 24 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
+  ctx.font = SANS_SEMI(s)
+  while (s > 24 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS_SEMI(s) }
   const lines = wrapText(ctx, text, maxWidth, 1)
-  setLabelTracking(ctx, false)
+  setTracking(ctx, null)
   return { size: s, lines, lh: s * 1.15 }
 }
 
 // Voetregel hoofd (§8) — auto-fit: pak de grootste maat die op één regel past
-// (48 → 44 → 40 → 36), dan pas wrap naar 2 regels. Vult de balk zo vol mogelijk.
+// (40 → 36 → 32), dan pas wrap naar 2 regels. Weight 600 (mockup), line-height 1,2.
 function fitFooterMain(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  for (const s of [FOOTER_MAIN_MAX, 44, 40, 36]) {
-    ctx.font = SANS(s)
-    if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 1.15 }
+  for (const s of [FOOTER_MAIN_MAX, 36, 32]) {
+    ctx.font = SANS_SEMI(s)
+    if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 1.2 }
   }
-  const s = 36
-  ctx.font = SANS(s)
-  return { size: s, lines: wrapText(ctx, text, maxWidth, 2), lh: s * 1.15 }
+  const s = 32
+  ctx.font = SANS_SEMI(s)
+  return { size: s, lines: wrapText(ctx, text, maxWidth, 2), lh: s * 1.2 }
 }
 
 // Voetregel-sub (§8): geen wrap; krimp de font tot 'ie binnen de balkbreedte past
-// (min 28). footerH rekent met FOOTER_SUB_FONT (max), dus de balk blijft hoog genoeg.
+// (min 26). footerH rekent met FOOTER_SUB_FONT (max), dus de balk blijft hoog genoeg.
 function fitSubFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): number {
   let s = FOOTER_SUB_FONT
   ctx.font = SANS(s)
-  while (s > 28 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
+  while (s > 26 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
   return s
 }
 
@@ -243,6 +265,8 @@ function fitSubFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: numbe
 export async function renderOverlayCard(file: File | null, slots: OverlaySlots): Promise<Blob | null> {
   try {
     if (typeof document === 'undefined') return null
+
+    await ensureFonts() // held is de blikvanger: canvas moet de echte condensed Barlow hebben
 
     const photo = file ? await loadImageFromFile(file) : null
     // Wél een file meegegeven maar hij laadt niet → heilig faalpad (origineel gaat omhoog).
@@ -414,10 +438,10 @@ function drawCardBody(
     ctx.fillRect(x, cy, KEYLINE_W, KEYLINE_H)
     cy += KEYLINE_H + KEYLINE_MARGIN_BOTTOM
     ctx.fillStyle = RED
-    ctx.font = SANS(c.labelFit.size)
-    setLabelTracking(ctx, true)
+    ctx.font = SANS_SEMI(c.labelFit.size)
+    setTracking(ctx, LABEL_TRACKING)
     ctx.fillText(c.labelFit.lines[0] ?? '', x, cy)
-    setLabelTracking(ctx, false)
+    setTracking(ctx, null)
     cy += c.labelFit.size + LABEL_MARGIN_BOTTOM
   }
 
@@ -447,7 +471,7 @@ function drawFooterText(
 
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
-    ctx.font = SANS(c.footerFit.size)
+    ctx.font = SANS_SEMI(c.footerFit.size)
     ctx.fillText(line, cx, fyy + i * c.footerFit.lh)
   })
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
@@ -476,11 +500,11 @@ function drawNoPhotoBody(
     ctx.fillStyle = `rgba(${CREME}, 1)`
     ctx.fillRect(x, cy, KEYLINE_W, KEYLINE_H)
     cy += KEYLINE_H + KEYLINE_MARGIN_BOTTOM
-    ctx.font = SANS(c.labelFit.size)
+    ctx.font = SANS_SEMI(c.labelFit.size)
     ctx.fillStyle = `rgba(${CREME}, 1)`
-    setLabelTracking(ctx, true)
+    setTracking(ctx, LABEL_TRACKING)
     ctx.fillText(c.labelFit.lines[0] ?? '', x, cy)
-    setLabelTracking(ctx, false)
+    setTracking(ctx, null)
     cy += c.labelFit.size + LABEL_MARGIN_BOTTOM
   }
 
@@ -504,7 +528,7 @@ function drawNoPhotoBody(
   let fyy = H - CARD_MARGIN_BOTTOM - footerH + FOOTER_PAD_Y
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
-    ctx.font = SANS(c.footerFit.size)
+    ctx.font = SANS_SEMI(c.footerFit.size)
     ctx.fillText(line, cx, fyy + i * c.footerFit.lh)
   })
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
