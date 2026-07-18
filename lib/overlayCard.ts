@@ -239,24 +239,55 @@ function fitLabel(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return { size: s, lines, lh: s * 1.15 }
 }
 
-// Voetregel hoofd (§8) — auto-fit: pak de grootste maat die op één regel past
-// (40 → 36 → 32), dan pas wrap naar 2 regels. Weight 600 (mockup), line-height 1,2.
-function fitFooterMain(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
-  for (const s of [FOOTER_MAIN_MAX, 36, 32]) {
-    ctx.font = SANS_SEMI(s)
-    if (ctx.measureText(text).width <= maxWidth) return { size: s, lines: [text], lh: s * 1.2 }
-  }
-  const s = 32
-  ctx.font = SANS_SEMI(s)
-  return { size: s, lines: wrapText(ctx, text, maxWidth, 2), lh: s * 1.2 }
+// ── Emoji-veilige voetregelbreedte (FIX-Overlay-Footer-Overflow-v1) ──────
+// De voetregels bevatten kleur-emoji (💪🏼 in het event-hoofd, 🤩 in de sub). Op iOS Safari
+// meet ctx.measureText zo'n skin-tone-/ZWJ-emoji ONBETROUWBAAR: de advance komt te smal (soms
+// 0) terug, terwijl fillText 'm wél op volle breedte tekent. Meet de auto-fit op die te smalle
+// waarde, dan "past" een bijna-volle regel volgens de meting maar loopt 'ie in werkelijkheid
+// rechts van de kaart af — precies de iOS-only overflow. (Android had Barlow al geladen op het
+// meetmoment én meet emoji anders, dus dáár viel het niet op; een groene Android-render bewees
+// dus niets.) Oplossing: reserveer per emoji ~1,5 em extra breedte. 1,5 em ligt ruim boven de
+// werkelijke emoji-advance (~1,2 em), dus de fit klopt zelfs als measureText de emoji als 0 meet.
+const EMOJI_RE = /\p{Extended_Pictographic}/gu
+const EMOJI_RESERVE_EM = 1.5
+function emojiReserve(text: string, fontSize: number): number {
+  const m = text.match(EMOJI_RE)
+  return m ? m.length * fontSize * EMOJI_RESERVE_EM : 0
+}
+// Breedte waarop we zowel de fit ALS de plaatsing van een voetregel baseren: de gemeten
+// breedte plus de emoji-reserve. Zo kan een mismeten emoji de regel nooit buiten de kaart duwen.
+function footerLineWidth(ctx: CanvasRenderingContext2D, text: string, fontSize: number): number {
+  return ctx.measureText(text).width + emojiReserve(text, fontSize)
 }
 
-// Voetregel-sub (§8): geen wrap; krimp de font tot 'ie binnen de balkbreedte past
-// (min 26). footerH rekent met FOOTER_SUB_FONT (max), dus de balk blijft hoog genoeg.
+// Voetregel hoofd (§8) — auto-fit: pak de grootste maat die op één regel binnen het ECHTE
+// tekstvak (kaart − 2× footer-padding) past, gemeten mét emoji-reserve; in fijne stappen van 2
+// (i.p.v. 40→36→32) zodat de grootste passende maat gekozen wordt. Past het bij min-maat nog
+// niet → wrap naar 2 regels en krimp tot beide regels (mét reserve) binnen vallen. wrapText
+// ellipseert wat dan nóg niet past, dus er loopt gegarandeerd niets buiten de kaart. Meet ná
+// ensureFonts met de echte ctx.font (weight 600), line-height 1,2.
+function fitFooterMain(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): Fit {
+  for (let s = FOOTER_MAIN_MAX; s >= 30; s -= 2) {
+    ctx.font = SANS_SEMI(s)
+    if (footerLineWidth(ctx, text, s) <= maxWidth) return { size: s, lines: [text], lh: s * 1.2 }
+  }
+  for (let s = 34; s >= 26; s -= 2) {
+    ctx.font = SANS_SEMI(s)
+    const lines = wrapText(ctx, text, maxWidth - emojiReserve(text, s), 2)
+    if (lines.every((l) => footerLineWidth(ctx, l, s) <= maxWidth)) return { size: s, lines, lh: s * 1.2 }
+  }
+  const s = 26
+  ctx.font = SANS_SEMI(s)
+  return { size: s, lines: wrapText(ctx, text, maxWidth - emojiReserve(text, s), 2), lh: s * 1.2 }
+}
+
+// Voetregel-sub (§8): geen wrap; krimp de font tot 'ie binnen de balkbreedte past (min 26),
+// gemeten mét emoji-reserve (de sub bevat 🤩). footerH rekent met FOOTER_SUB_FONT (max), dus
+// de balk blijft hoog genoeg.
 function fitSubFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): number {
   let s = FOOTER_SUB_FONT
   ctx.font = SANS(s)
-  while (s > 26 && ctx.measureText(text).width > maxWidth) { s -= 2; ctx.font = SANS(s) }
+  while (s > 26 && footerLineWidth(ctx, text, s) > maxWidth) { s -= 2; ctx.font = SANS(s) }
   return s
 }
 
@@ -464,7 +495,11 @@ function drawCardBody(
 function drawFooterText(
   ctx: CanvasRenderingContext2D, cardX: number, footerY: number, cardW: number, footerH: number, c: CardContent,
 ) {
-  ctx.textAlign = 'center'
+  // Links uitlijnen en zelf om het midden plaatsen (x = cx − breedte/2, mét emoji-reserve).
+  // Zo bepaalt niet de browser-interne breedte (die de emoji mismeet) de centrering, maar onze
+  // eigen — gereserveerde — breedte. Omdat die reserve ≥ de echte emoji-advance is, blijven
+  // linker- én rechterrand van elke regel gegarandeerd binnen het tekstvak (cx ± tekstvak/2).
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
   const cx = cardX + cardW / 2
   let fyy = footerY + FOOTER_PAD_Y
@@ -472,15 +507,17 @@ function drawFooterText(
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
     ctx.font = SANS_SEMI(c.footerFit.size)
-    ctx.fillText(line, cx, fyy + i * c.footerFit.lh)
+    const w = footerLineWidth(ctx, line, c.footerFit.size)
+    ctx.fillText(line, cx - w / 2, fyy + i * c.footerFit.lh)
   })
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
 
   if (c.footerSub) {
     fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(fitSubFont(ctx, c.footerSub, cardW - FOOTER_PAD_X * 2))
-    ctx.fillText(c.footerSub, cx, fyy)
+    const subSize = fitSubFont(ctx, c.footerSub, cardW - FOOTER_PAD_X * 2)
+    ctx.font = SANS(subSize)
+    ctx.fillText(c.footerSub, cx - footerLineWidth(ctx, c.footerSub, subSize) / 2, fyy)
   }
   void footerH
 }
@@ -522,20 +559,23 @@ function drawNoPhotoBody(
     ctx.fillText(c.meta, x, cy)
   }
 
-  // Voetregel-sub (body-rock.nl) onderin, gecentreerd.
-  ctx.textAlign = 'center'
+  // Voetregel (near-flush onderin), zelf om het midden geplaatst mét emoji-reserve — zie
+  // drawFooterText voor waarom we niet op textAlign:'center' vertrouwen.
+  ctx.textAlign = 'left'
   const cx = W / 2
   let fyy = H - CARD_MARGIN_BOTTOM - footerH + FOOTER_PAD_Y
   ctx.fillStyle = '#FFFFFF'
   c.footerFit.lines.forEach((line, i) => {
     ctx.font = SANS_SEMI(c.footerFit.size)
-    ctx.fillText(line, cx, fyy + i * c.footerFit.lh)
+    const w = footerLineWidth(ctx, line, c.footerFit.size)
+    ctx.fillText(line, cx - w / 2, fyy + i * c.footerFit.lh)
   })
   fyy += (c.footerFit.lines.length - 1) * c.footerFit.lh + c.footerFit.size
   if (c.footerSub) {
     fyy += FOOTER_SUB_GAP
     ctx.fillStyle = 'rgba(255,255,255,0.80)'
-    ctx.font = SANS(fitSubFont(ctx, c.footerSub, CARD_W - FOOTER_PAD_X * 2))
-    ctx.fillText(c.footerSub, cx, fyy)
+    const subSize = fitSubFont(ctx, c.footerSub, CARD_W - FOOTER_PAD_X * 2)
+    ctx.font = SANS(subSize)
+    ctx.fillText(c.footerSub, cx - footerLineWidth(ctx, c.footerSub, subSize) / 2, fyy)
   }
 }
