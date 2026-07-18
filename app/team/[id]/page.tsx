@@ -163,6 +163,8 @@ export default function TeamPage() {
       teamName: team?.name || '',
       captainName: team?.captain_name || '',
       challengeName: activeChallenge?.title || '',
+      // Chip "2 / 10" — canonieke challenge-nummer, matcht de "Challenge N"-kop in de modal.
+      chipText: activeChallenge ? `${activeChallenge.number} / ${orderedChallenges.length}` : undefined,
     })
     if (blob) {
       setOverlayBlob(blob)
