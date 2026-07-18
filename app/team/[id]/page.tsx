@@ -3,9 +3,24 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, Challenge, Score, ChallengeStep, StepCompletion, FunPhoto } from '@/lib/supabase'
 import { formatScore, getRotatedOrder, formatTimer } from '@/lib/utils'
-import { generateOverlay } from '@/lib/photoOverlay'
+import { generateOverlay, OverlayOpts } from '@/lib/photoOverlay'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+
+// Challenge 10 ("De Body Rock Hall of Fame") is de Foto-Safari. De drie sub-opdrachten
+// krijgen een eigen overlay-inhoud: label 'DE FOTO-SAFARI', een vaste slogan als held (per
+// foto), de teamnaam op de meta-regel en een foto-chip. Slot-teksten:
+// Body-Rock-Event-Challenges-FINAL.xlsx, tab "Overlay Challenge 10". Bewust géén emoji in de
+// helden (renderen wisselend op canvas). Held wordt door de kaart in hoofdletters getekend.
+// De hoofdfoto (zweeffoto) houdt bewust de gewone teamnaam-held (Yuri, 18 juli).
+const FOTO_SAFARI_CHALLENGE_NUMBER = 10
+const FOTO_SAFARI_LABEL = 'DE FOTO-SAFARI'
+// Sleutel = step_number: 1 = getal '10', 2 = spierballen, 3 = Balijhoeve.
+const FOTO_SAFARI_STEPS: Record<number, { held: string; chip: string }> = {
+  1: { held: '10 jaar Body Rock', chip: 'Foto 1/3' },
+  2: { held: '10 jaar bootcamp', chip: 'Foto 2/3' },
+  3: { held: 'Fun @balijhoeve', chip: 'Foto 3/3' },
+}
 
 export default function TeamPage() {
   const params = useParams()
@@ -150,6 +165,18 @@ export default function TeamPage() {
     setScores(prev => ({ ...prev, [activeChallenge.id]: updated }))
   }
 
+  // Bouw de Foto-Safari-overlay-opts (challenge 10): vaste held-slogan + foto-chip,
+  // label 'DE FOTO-SAFARI' en de teamnaam op de meta-regel. Zie constants bovenaan.
+  function safariOverlayOpts(slot: { held: string; chip: string }): OverlayOpts {
+    return {
+      teamName: team?.name || '',
+      challengeName: FOTO_SAFARI_LABEL,
+      chipText: slot.chip,
+      heldOverride: slot.held,
+      metaOverride: team?.name || '',
+    }
+  }
+
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -159,6 +186,8 @@ export default function TeamPage() {
     setPhotoPreview(URL.createObjectURL(file))
 
     // Overlay-randje erop proberen. Lukt het niet, dan blijft het origineel staan.
+    // NB: de hoofdfoto (ook challenge 10's zweeffoto) houdt bewust de teamnaam als held —
+    // alleen de sub-opdrachten krijgen de Foto-Safari-inhoud (Yuri, 18 juli).
     const blob = await generateOverlay(file, {
       teamName: team?.name || '',
       captainName: team?.captain_name || '',
@@ -250,7 +279,11 @@ export default function TeamPage() {
       let photoUrl = completions[activeStep.id]?.photo_url || null
       if (stepPhoto) {
         // Overlay-randje ook op sub-opdracht-foto's. Faalt het → origineel.
-        const overlay = await generateOverlay(stepPhoto, {
+        // Challenge 10 = Foto-Safari: per sub-opdracht een eigen held-slogan + foto-chip.
+        const safariSlot = activeChallenge?.number === FOTO_SAFARI_CHALLENGE_NUMBER
+          ? FOTO_SAFARI_STEPS[activeStep.step_number]
+          : undefined
+        const overlay = await generateOverlay(stepPhoto, safariSlot ? safariOverlayOpts(safariSlot) : {
           teamName: team?.name || '',
           captainName: team?.captain_name || '',
           challengeName: activeChallenge?.title || '',

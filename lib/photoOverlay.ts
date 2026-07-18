@@ -18,6 +18,11 @@ export type OverlayOpts = {
   chipText?: string
   // Verticale foto-pan 0-100 (object-position 50% Y%), default 50. Zie SPEC §6b (slider).
   photoY?: number
+  // Foto-Safari (challenge 10, "De Body Rock Hall of Fame"): daar is de held een vaste
+  // per-foto slogan i.p.v. de teamnaam, en de teamnaam zakt naar de meta-regel (i.p.v.
+  // "Aanvoerder X"). Beide leeg → normaal gedrag (held = team, meta = aanvoerder).
+  heldOverride?: string
+  metaOverride?: string
 }
 
 // Footer-copy is canoniek en vastgesteld — niet aanpassen.
@@ -29,11 +34,13 @@ const FOOTER_SUB = 'Leuke prijzen te winnen 🤩 · body-rock.nl'
 
 export async function generateOverlay(file: File, opts: OverlayOpts): Promise<Blob | null> {
   const captain = opts.captainName?.trim()
+  const metaOverride = opts.metaOverride?.trim()
   return renderOverlayCard(file, {
     chip: opts.chipText,
     label: opts.challengeName,                       // fun-foto's hebben er geen → slot valt weg
-    held: opts.teamName || 'Team',
-    meta: captain ? `Aanvoerder ${captain}` : undefined, // leeg/placeholder → slot weg (§9)
+    held: opts.heldOverride?.trim() || opts.teamName || 'Team',
+    // Foto-Safari zet hier de teamnaam; anders de aanvoerder. Leeg/placeholder → slot weg (§9).
+    meta: metaOverride || (captain ? `Aanvoerder ${captain}` : undefined),
     footerMain: FOOTER_MAIN,
     footerSub: FOOTER_SUB,
     photoY: opts.photoY,
